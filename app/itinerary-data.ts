@@ -3,6 +3,7 @@ export interface ScheduleItem {
   place: string;
   transport: string;
   activity: string;
+  memo?: string;
 }
 
 export interface DaySchedule {
@@ -64,8 +65,8 @@ export const cities: CityInfo[] = [
           { time: "13:00~14:00", place: "Orsay", transport: "🍽️", activity: "Orsay (프렌치 비스트로, 실내 1시 예약)" },
           { time: "14:00~15:00", place: "메트 자유관람", transport: "🎨", activity: "메트 자유관람" },
           { time: "15:00~16:00", place: "→ DUMBO", transport: "🚖", activity: "센트럴파크 산책 (선택)" },
-          { time: "16:00~17:00", place: "→ DUMBO", transport: "🚖", activity: "우버 → 호텔 → DUMBO" },
-          { time: "17:00~18:00", place: "DUMBO", transport: "📸", activity: "웨딩스냅 촬영" },
+          { time: "16:00~17:00", place: "DUMBO, Brooklyn", transport: "🚇", activity: "호텔 → DUMBO 이동 (지하철 F선 York St역)", memo: "🚇 지하철 추천 — F선 York St역 하차 도보 5분" },
+          { time: "17:00~18:00", place: "DUMBO, Brooklyn", transport: "📸", activity: "웨딩스냅 촬영 (리베뉴욕)", memo: "📸 리베뉴욕 스냅 안내\n• 잔금: 현장에서 작가님께 달러로 전달\n• 날씨/현지 상황으로 날짜·시간 변동 가능\n• 스냅 앞뒤 여유 시간 필수\n• 무드레퍼런스 5~10장 + 전신사진 이미지 파일로 전달\n• 의상 정해지면 미리 전달\n• FAQ: blog.naver.com/liebe_____/223626004631" },
           { time: "18:00~19:00", place: "Juliana's", transport: "🚶", activity: "🍕 Juliana's 피자" },
           { time: "19:00~20:00", place: "Randolph Beer DUMBO", transport: "🚶", activity: "🍺 Randolph Beer" },
           { time: "20:00~21:00", place: "호텔", transport: "🚖", activity: "호텔 복귀" },
@@ -488,7 +489,7 @@ export const reservations: Reservation[] = [
   { city: "뉴욕", cityEmoji: "🗽", category: "공연", item: "해리포터 브로드웨이 공연", time: "6/4 19:00", bookingSite: "TodayTix", bookingUrl: "https://www.todaytix.com", cost: "₩271,800", status: "미완료", memo: "" },
   { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Keens Steakhouse", time: "6/5 17:30", bookingSite: "Resy", bookingUrl: "https://resy.com", cost: "₩453,000", status: "완료", memo: "뉴욕 고전 스테이크하우스 (1885~)" },
   { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Orsay 점심 (프렌치 비스트로)", time: "6/2 13:00", bookingSite: "Resy", bookingUrl: "https://resy.com", cost: "₩181,200", status: "완료", memo: "메트 도슨트 종료 후 도보 이동" },
-  { city: "뉴욕", cityEmoji: "🗽", category: "스냅촬영", item: "DUMBO 웨딩스냅 촬영", time: "6/2 17:00", bookingSite: "리베뉴욕", bookingUrl: "", cost: "₩604,000", status: "완료", memo: "" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "스냅촬영", item: "DUMBO 웨딩스냅 촬영", time: "6/2 17:00", bookingSite: "리베뉴욕", bookingUrl: "https://m.blog.naver.com/liebe_____/223626004631", cost: "₩604,000", status: "완료", memo: "잔금 달러 현장 전달 / DUMBO Brooklyn 만남" },
   { city: "뉴욕", cityEmoji: "🗽", category: "쇼핑", item: "우드버리 아울렛 왕복 셔틀버스", time: "6/5", bookingSite: "타미스", bookingUrl: "https://tamice.com", cost: "₩108,720", status: "완료", memo: "Port Authority 4층 출발" },
   { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Carmine's 저녁 (이탈리안)", time: "6/4 16:30", bookingSite: "OpenTable", bookingUrl: "https://www.opentable.com", cost: "₩120,800", status: "완료", memo: "해리포터 공연 전 저녁" },
   { city: "마이애미", cityEmoji: "🏖️", category: "다이닝", item: "Gianni's (베르사체 맨션 런치)", time: "6/7 12:30", bookingSite: "OpenTable", bookingUrl: "https://www.opentable.com", cost: "₩302,000", status: "완료", memo: "풀사이드 자리 요청" },

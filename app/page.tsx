@@ -318,6 +318,9 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
                                   📍{item.place}
                                 </a>
                               )}
+                              {item.memo && (
+                                <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1.5 mt-1.5 whitespace-pre-line">{item.memo}</p>
+                              )}
                             </div>
                           </div>
                         ))}
