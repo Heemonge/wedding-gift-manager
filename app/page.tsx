@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import html2canvas from "html2canvas-pro";
+import { cities } from "./itinerary-data";
 
 const DEFAULT_TICKET_PRICE = 65000;
 const DEFAULT_TOTAL_TICKETS = 200;
@@ -82,6 +83,150 @@ function calcSummary(entries: GiftEntry[], ticketPrice: number) {
     totalTicketCost: entries.reduce((s, e) => s + e.tickets * ticketPrice, 0),
     totalNet: entries.reduce((s, e) => s + (e.amount - e.tickets * ticketPrice), 0),
   };
+}
+
+function ItineraryView({ onBack }: { onBack: () => void }) {
+  const [activeCityIndex, setActiveCityIndex] = useState(0);
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+
+  const city = cities[activeCityIndex];
+
+  const toggleDay = (dayKey: string) => {
+    setExpandedDays((prev) => ({ ...prev, [dayKey]: !prev[dayKey] }));
+  };
+
+  const isDayExpanded = (dayKey: string) => {
+    return expandedDays[dayKey] ?? true;
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b-2 border-teal-300 sticky top-0 z-10">
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+          <h1 className="text-lg font-bold text-gray-900">신혼여행 일정</h1>
+        </div>
+      </header>
+
+      {/* City Tabs */}
+      <div className="bg-white border-b border-gray-200 sticky top-[53px] z-10">
+        <div className="max-w-2xl mx-auto px-4 flex">
+          {cities.map((c, i) => (
+            <button
+              key={c.name}
+              onClick={() => setActiveCityIndex(i)}
+              className={`flex-1 py-3 text-center text-sm font-semibold transition-colors relative ${
+                activeCityIndex === i
+                  ? "text-teal-700"
+                  : "text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              <span className="text-lg mr-1">{c.emoji}</span>
+              {c.name}
+              <span className="block text-xs font-normal text-gray-400 mt-0.5">{c.period}</span>
+              {activeCityIndex === i && (
+                <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-teal-500 rounded-full" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <main className="max-w-2xl mx-auto px-4 py-4 pb-12">
+        {/* City Info Card */}
+        <div className="bg-white rounded-xl border border-teal-200 p-4 mb-4">
+          <div className="flex items-start gap-3">
+            <span className="text-3xl">{city.emoji}</span>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-bold text-gray-900">{city.name}</h2>
+              <p className="text-sm text-gray-500 mt-1">{city.period}</p>
+            </div>
+          </div>
+          <div className="mt-3 space-y-2">
+            <div className="flex items-start gap-2 text-sm">
+              <span className="text-teal-600 shrink-0 mt-0.5">🏨</span>
+              <span className="text-gray-700">{city.hotel}</span>
+            </div>
+            <div className="flex items-start gap-2 text-sm">
+              <span className="text-teal-600 shrink-0 mt-0.5">✈️</span>
+              <span className="text-gray-700 whitespace-pre-line">{city.flight}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Day Schedules */}
+        <div className="space-y-3">
+          {city.days.map((day) => {
+            const dayKey = `${city.name}-${day.day}`;
+            const expanded = isDayExpanded(dayKey);
+            return (
+              <div key={dayKey} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                {/* Day Header */}
+                <button
+                  onClick={() => toggleDay(dayKey)}
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded">
+                      {day.day}
+                    </span>
+                    <span className="text-sm text-gray-700 font-medium">{day.date}</span>
+                    {day.subtitle && (
+                      <span className="text-xs text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full">
+                        {day.subtitle}
+                      </span>
+                    )}
+                  </div>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-5 w-5 text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+
+                {/* Schedule Items */}
+                {expanded && (
+                  <div className="border-t border-gray-100">
+                    {day.items.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className={`px-4 py-2.5 flex items-start gap-3 text-sm ${
+                          idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                        } ${idx < day.items.length - 1 ? "border-b border-gray-50" : ""}`}
+                      >
+                        <span className="text-xs text-gray-400 font-mono shrink-0 pt-0.5 w-[90px]">
+                          {item.time}
+                        </span>
+                        <span className="text-base shrink-0 w-6 text-center">
+                          {item.transport || ""}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-gray-800">{item.activity}</span>
+                          {item.place && (
+                            <span className="text-xs text-gray-400 ml-2">{item.place}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </main>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -497,26 +642,7 @@ export default function Home() {
   }
 
   if (page === "itinerary") {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b-2 border-teal-300 sticky top-0 z-10">
-          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-            <button
-              onClick={() => setPage("select")}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
-            <h1 className="text-lg font-bold text-gray-900">신혼여행 일정</h1>
-          </div>
-        </header>
-        <main className="max-w-4xl mx-auto px-4 py-6">
-          <p className="text-center text-gray-400">일정 데이터를 준비 중입니다...</p>
-        </main>
-      </div>
-    );
+    return <ItineraryView onBack={() => setPage("select")} />;
   }
 
   if (!side) {
