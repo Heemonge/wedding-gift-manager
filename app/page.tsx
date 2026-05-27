@@ -39,7 +39,7 @@ interface GiftEntry {
 }
 
 type Side = "groom" | "bride";
-type Page = "select" | "groom" | "bride" | "settlement";
+type Page = "select" | "groom" | "bride" | "settlement" | "itinerary";
 
 const STORAGE_KEY_PREFIX = "wedding-gift-";
 
@@ -496,6 +496,29 @@ export default function Home() {
     );
   }
 
+  if (page === "itinerary") {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white border-b-2 border-teal-300 sticky top-0 z-10">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+            <button
+              onClick={() => setPage("select")}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            <h1 className="text-lg font-bold text-gray-900">신혼여행 일정</h1>
+          </div>
+        </header>
+        <main className="max-w-4xl mx-auto px-4 py-6">
+          <p className="text-center text-gray-400">일정 데이터를 준비 중입니다...</p>
+        </main>
+      </div>
+    );
+  }
+
   if (!side) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -608,12 +631,20 @@ export default function Home() {
               <span className="text-lg font-semibold text-pink-700 group-hover:text-pink-800">신부측</span>
             </button>
           </div>
-          <button
-            onClick={() => setPage("settlement")}
-            className="px-6 py-3 bg-amber-500 text-white font-semibold rounded-xl hover:bg-amber-600 transition-colors shadow-sm"
-          >
-            정산하기
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setPage("settlement")}
+              className="px-6 py-3 bg-amber-500 text-white font-semibold rounded-xl hover:bg-amber-600 transition-colors shadow-sm"
+            >
+              정산하기
+            </button>
+            <button
+              onClick={() => setPage("itinerary")}
+              className="px-6 py-3 bg-teal-500 text-white font-semibold rounded-xl hover:bg-teal-600 transition-colors shadow-sm"
+            >
+              신혼여행 일정
+            </button>
+          </div>
         </div>
       </div>
     );
