@@ -40,7 +40,7 @@ interface GiftEntry {
 }
 
 type Side = "groom" | "bride";
-type Page = "select" | "groom" | "bride" | "settlement" | "itinerary";
+type Page = "home" | "select" | "groom" | "bride" | "settlement" | "itinerary";
 
 const STORAGE_KEY_PREFIX = "wedding-gift-";
 
@@ -230,7 +230,7 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
 }
 
 export default function Home() {
-  const [page, setPage] = useState<Page>("select");
+  const [page, setPage] = useState<Page>("home");
   const [side, setSide] = useState<Side | null>(null);
   const [entries, setEntries] = useState<GiftEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -256,6 +256,8 @@ export default function Home() {
     if (savedSide === "groom" || savedSide === "bride") {
       setSide(savedSide);
       setPage(savedSide);
+    } else {
+      setPage("home");
     }
     setInitializing(false);
   }, []);
@@ -551,6 +553,7 @@ export default function Home() {
               </svg>
             </button>
             <h1 className="text-lg font-bold text-gray-900">축의금 정산</h1>
+
             <button
               onClick={() => handleDownload("축의금_정산")}
               className="ml-auto text-xs px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
@@ -641,15 +644,51 @@ export default function Home() {
     );
   }
 
+  if (page === "home") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-8">Wedding Manager</h1>
+          <div className="flex gap-6">
+            <button
+              onClick={() => setPage("select")}
+              className="w-48 h-48 bg-white border-2 border-amber-200 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-amber-500 hover:shadow-lg transition-all group"
+            >
+              <span className="text-5xl">💒</span>
+              <span className="text-lg font-semibold text-amber-700 group-hover:text-amber-800">축의금 관리</span>
+            </button>
+            <button
+              onClick={() => setPage("itinerary")}
+              className="w-48 h-48 bg-white border-2 border-teal-200 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-teal-500 hover:shadow-lg transition-all group"
+            >
+              <span className="text-5xl">✈️</span>
+              <span className="text-lg font-semibold text-teal-700 group-hover:text-teal-800">신혼여행 일정</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (page === "itinerary") {
-    return <ItineraryView onBack={() => setPage("select")} />;
+    return <ItineraryView onBack={() => setPage("home")} />;
   }
 
   if (!side) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">축의금 관리</h1>
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <button
+              onClick={() => setPage("home")}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            <h1 className="text-2xl font-bold text-gray-900">축의금 관리</h1>
+          </div>
           <p className="text-gray-500 mb-6">관리할 측을 선택하세요</p>
 
           <div className="mb-6 w-full max-w-sm mx-auto">
@@ -757,20 +796,12 @@ export default function Home() {
               <span className="text-lg font-semibold text-pink-700 group-hover:text-pink-800">신부측</span>
             </button>
           </div>
-          <div className="flex gap-4">
-            <button
-              onClick={() => setPage("settlement")}
-              className="px-6 py-3 bg-amber-500 text-white font-semibold rounded-xl hover:bg-amber-600 transition-colors shadow-sm"
-            >
-              정산하기
-            </button>
-            <button
-              onClick={() => setPage("itinerary")}
-              className="px-6 py-3 bg-teal-500 text-white font-semibold rounded-xl hover:bg-teal-600 transition-colors shadow-sm"
-            >
-              신혼여행 일정
-            </button>
-          </div>
+          <button
+            onClick={() => setPage("settlement")}
+            className="px-6 py-3 bg-amber-500 text-white font-semibold rounded-xl hover:bg-amber-600 transition-colors shadow-sm"
+          >
+            정산하기
+          </button>
         </div>
       </div>
     );
