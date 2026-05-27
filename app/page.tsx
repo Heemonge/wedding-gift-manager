@@ -504,12 +504,24 @@ export default function Home() {
           <p className="text-gray-500 mb-6">관리할 측을 선택하세요</p>
 
           <div className="mb-6 w-full max-w-sm mx-auto">
-            <button
-              onClick={() => setShowConfig(!showConfig)}
-              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              {showConfig ? "설정 닫기" : "식권 설정"}
-            </button>
+            {!showConfig ? (
+              <button
+                onClick={() => {
+                  const pw = prompt("비밀번호를 입력하세요");
+                  if (pw === "8789") setShowConfig(true);
+                }}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                식권 설정
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowConfig(false)}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                설정 닫기
+              </button>
+            )}
           </div>
           {showConfig && <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6 w-full max-w-sm mx-auto text-left">
             <div className="space-y-3">
