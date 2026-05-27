@@ -125,6 +125,21 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
     });
   };
 
+  const [exchangeInput, setExchangeInput] = useState("");
+  const [exchangeDir, setExchangeDir] = useState<"usd2krw" | "krw2usd">("usd2krw");
+
+  const DEPARTURE_DATE = new Date(2026, 5, 1);
+  const today = new Date();
+  const dDay = Math.ceil((DEPARTURE_DATE.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  const todayDateStr = `${today.getMonth() + 1}월 ${today.getDate()}일`;
+  const allDays = cities.flatMap((c) => c.days.map((d) => ({ ...d, cityName: c.name, cityEmoji: c.emoji })));
+  const todaySchedule = allDays.find((d) => {
+    const match = d.date.match(/(\d+)월\s*(\d+)일/);
+    if (!match) return false;
+    return parseInt(match[1]) === today.getMonth() + 1 && parseInt(match[2]) === today.getDate();
+  });
+
   const city = cities[activeCityIndex];
 
   const toggleDay = (dayKey: string) => {
@@ -168,6 +183,9 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
             </svg>
           </button>
           <h1 className="text-lg font-bold text-gray-900">신혼여행</h1>
+          <span className={`ml-auto text-xs px-2.5 py-1 rounded-full font-semibold ${dDay > 0 ? "bg-teal-100 text-teal-700" : dDay === 0 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"}`}>
+            {dDay > 0 ? `D-${dDay}` : dDay === 0 ? "D-Day!" : `여행 ${Math.abs(dDay)}일차`}
+          </span>
         </div>
       </header>
 
@@ -199,6 +217,28 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
       {/* ───── SCHEDULE SECTION ───── */}
       {section === "schedule" && (
         <>
+          {/* Today's Schedule Highlight */}
+          {todaySchedule && (
+            <div className="max-w-2xl mx-auto px-4 pt-3">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <p className="text-sm font-bold text-amber-800 mb-2">
+                  {todaySchedule.cityEmoji} 오늘 일정 — {todaySchedule.day} {todaySchedule.date}
+                </p>
+                <div className="space-y-1">
+                  {todaySchedule.items.filter(i => i.activity).slice(0, 5).map((item, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-xs">
+                      <span className="text-amber-600 font-mono shrink-0">{item.time.split("~")[0]}</span>
+                      <span className="text-amber-900">{item.activity}</span>
+                    </div>
+                  ))}
+                  {todaySchedule.items.filter(i => i.activity).length > 5 && (
+                    <p className="text-xs text-amber-500">+{todaySchedule.items.filter(i => i.activity).length - 5}개 더...</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* City Tabs */}
           <div className="bg-white border-b border-gray-200 sticky top-[97px] z-[9]">
             <div className="max-w-2xl mx-auto px-4 flex">
@@ -518,41 +558,56 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
             <p className="text-sm text-teal-200 mt-0.5">{budget.total.usd}</p>
           </div>
 
-          {/* Budget Table */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-teal-50 border-b border-teal-100">
-                    <th className="px-3 py-2.5 text-left font-semibold text-teal-800">항목</th>
-                    <th className="px-3 py-2.5 text-right font-semibold text-teal-800 w-24">USD</th>
-                    <th className="px-3 py-2.5 text-right font-semibold text-teal-800 w-28">KRW</th>
-                    <th className="px-3 py-2.5 text-center font-semibold text-teal-800 w-20">비고</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {budget.items.map((item, idx) => (
-                    <tr key={idx} className={`${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"} border-b border-gray-50`}>
-                      <td className="px-3 py-2.5">
-                        <span className="text-gray-800">{item.category}</span>
-                        <span className="block text-xs text-gray-500 mt-0.5">{item.item}</span>
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-gray-700 font-mono text-xs">{item.usd}</td>
-                      <td className="px-3 py-2.5 text-right text-gray-900 font-medium">{item.krw}</td>
-                      <td className="px-3 py-2.5 text-center text-xs text-gray-400">{item.memo}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-teal-50 border-t-2 border-teal-200">
-                    <td className="px-3 py-3 font-bold text-teal-800">합계</td>
-                    <td className="px-3 py-3 text-right font-bold text-teal-800 font-mono text-xs">{budget.total.usd}</td>
-                    <td className="px-3 py-3 text-right font-bold text-teal-800">{budget.total.krw}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
+          {/* Currency Calculator */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+            <p className="text-xs font-semibold text-gray-500 mb-3">환율 계산기</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="decimal"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-right focus:outline-none focus:border-teal-400"
+                placeholder={exchangeDir === "usd2krw" ? "USD" : "KRW"}
+                value={exchangeInput}
+                onChange={(e) => setExchangeInput(e.target.value.replace(/[^0-9.]/g, ""))}
+              />
+              <button
+                onClick={() => { setExchangeDir(exchangeDir === "usd2krw" ? "krw2usd" : "usd2krw"); setExchangeInput(""); }}
+                className="text-lg px-2 py-1"
+              >
+                🔄
+              </button>
+              <div className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-right font-medium">
+                {exchangeInput ? (
+                  exchangeDir === "usd2krw"
+                    ? `₩${Math.round(parseFloat(exchangeInput) * parseInt(budget.exchangeRate.replace(/,/g, ""))).toLocaleString("ko-KR")}`
+                    : `$${(parseFloat(exchangeInput) / parseInt(budget.exchangeRate.replace(/,/g, ""))).toFixed(2)}`
+                ) : (
+                  <span className="text-gray-300">{exchangeDir === "usd2krw" ? "KRW" : "USD"}</span>
+                )}
+              </div>
             </div>
+            <p className="text-xs text-gray-400 mt-2 text-center">
+              {exchangeDir === "usd2krw" ? "달러 → 원화" : "원화 → 달러"} (₩{budget.exchangeRate}/USD)
+            </p>
+          </div>
+
+          {/* Budget List */}
+          <div className="space-y-2">
+            {budget.items.map((item, idx) => (
+              <div key={idx} className="bg-white rounded-lg border border-gray-200 px-4 py-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-gray-800">{item.category}</span>
+                    <p className="text-xs text-gray-500 mt-0.5">{item.item}</p>
+                  </div>
+                  <div className="text-right shrink-0 ml-3">
+                    <p className="text-sm font-semibold text-gray-900">{item.krw}</p>
+                    <p className="text-xs text-gray-400">{item.usd}</p>
+                  </div>
+                </div>
+                {item.memo && <p className="text-xs text-green-600 mt-1">{item.memo}</p>}
+              </div>
+            ))}
           </div>
         </main>
       )}
