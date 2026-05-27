@@ -109,6 +109,21 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
   const [section, setSection] = useState<ItinerarySection>("schedule");
   const [activeCityIndex, setActiveCityIndex] = useState(0);
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const [hideChecked, setHideChecked] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("wedding-checklist");
+    if (saved) setCheckedItems(JSON.parse(saved));
+  }, []);
+
+  const toggleCheck = (key: string) => {
+    setCheckedItems((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem("wedding-checklist", JSON.stringify(next));
+      return next;
+    });
+  };
 
   const city = cities[activeCityIndex];
 
@@ -280,7 +295,14 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
                             <div className="flex-1 min-w-0">
                               <span className="text-gray-800">{item.activity}</span>
                               {item.place && (
-                                <span className="text-xs text-gray-400 ml-2">{item.place}</span>
+                                <a
+                                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(item.place)}&travelmode=transit`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center text-xs text-teal-600 ml-2 underline"
+                                >
+                                  📍{item.place}
+                                </a>
                               )}
                             </div>
                           </div>
@@ -298,37 +320,67 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
       {/* ───── CHECKLIST SECTION ───── */}
       {section === "checklist" && (
         <main className="max-w-2xl mx-auto px-4 py-4 pb-12">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-xs text-gray-500">
+              {Object.values(checkedItems).filter(Boolean).length} / {checklist.reduce((s, c) => s + c.items.length, 0)} 완료
+            </span>
+            <button
+              onClick={() => setHideChecked(!hideChecked)}
+              className={`text-xs px-3 py-1 rounded-full transition-colors ${hideChecked ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-500"}`}
+            >
+              {hideChecked ? "체크한 항목 숨김" : "체크한 항목 숨기기"}
+            </button>
+          </div>
           <div className="space-y-4">
-            {checklist.map((cat) => (
-              <div key={cat.title} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-4 py-3 bg-teal-50 border-b border-teal-100">
-                  <h3 className="text-sm font-bold text-teal-800">
-                    <span className="mr-1.5">{cat.icon}</span>{cat.title}
-                    <span className="ml-2 text-xs font-normal text-teal-600">({cat.items.length})</span>
-                  </h3>
+            {checklist.map((cat) => {
+              const visibleItems = hideChecked
+                ? cat.items.filter((_, idx) => !checkedItems[`${cat.title}-${idx}`])
+                : cat.items;
+              const checkedCount = cat.items.filter((_, idx) => checkedItems[`${cat.title}-${idx}`]).length;
+              if (hideChecked && visibleItems.length === 0) return null;
+              return (
+                <div key={cat.title} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="px-4 py-3 bg-teal-50 border-b border-teal-100">
+                    <h3 className="text-sm font-bold text-teal-800">
+                      <span className="mr-1.5">{cat.icon}</span>{cat.title}
+                      <span className="ml-2 text-xs font-normal text-teal-600">({checkedCount}/{cat.items.length})</span>
+                    </h3>
+                  </div>
+                  <div>
+                    {visibleItems.map((item) => {
+                      const origIdx = cat.items.indexOf(item);
+                      const key = `${cat.title}-${origIdx}`;
+                      const checked = !!checkedItems[key];
+                      return (
+                        <button
+                          key={origIdx}
+                          onClick={() => toggleCheck(key)}
+                          className={`w-full px-4 py-2.5 flex items-center gap-3 text-sm text-left transition-colors ${
+                            checked ? "bg-teal-50/50" : origIdx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                          } border-b border-gray-50 last:border-b-0`}
+                        >
+                          <span className={`shrink-0 ${checked ? "text-teal-500" : "text-gray-300"}`}>
+                            {checked ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <rect x="3" y="3" width="18" height="18" rx="3" />
+                              </svg>
+                            )}
+                          </span>
+                          <span className={`flex-1 ${checked ? "line-through text-gray-400" : "text-gray-800"}`}>{item.name}</span>
+                          {item.note && (
+                            <span className="text-xs text-gray-400 shrink-0 max-w-[140px] text-right">{item.note}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div>
-                  {cat.items.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className={`px-4 py-2.5 flex items-center gap-3 text-sm ${
-                        idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                      } ${idx < cat.items.length - 1 ? "border-b border-gray-50" : ""}`}
-                    >
-                      <span className="text-gray-400 shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <rect x="3" y="3" width="18" height="18" rx="3" />
-                        </svg>
-                      </span>
-                      <span className="flex-1 text-gray-800">{item.name}</span>
-                      {item.note && (
-                        <span className="text-xs text-gray-400 shrink-0 max-w-[140px] text-right">{item.note}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </main>
       )}
@@ -371,7 +423,11 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
                           </div>
                           <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
                             {r.time && <span>{r.time}</span>}
-                            <span>{r.bookingSite}</span>
+                            {r.bookingUrl ? (
+                              <a href={r.bookingUrl} target="_blank" rel="noopener noreferrer" className="text-teal-600 underline">{r.bookingSite}</a>
+                            ) : (
+                              <span>{r.bookingSite}</span>
+                            )}
                             <span className="font-medium text-gray-700">{r.cost}</span>
                           </div>
                           {r.memo && <p className="text-xs text-gray-400 mt-1">{r.memo}</p>}

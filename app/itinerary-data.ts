@@ -457,32 +457,33 @@ export interface Reservation {
   item: string;
   time: string;
   bookingSite: string;
+  bookingUrl: string;
   cost: string;
   status: "완료" | "미완료" | "주의";
   memo: string;
 }
 
 export const reservations: Reservation[] = [
-  { city: "뉴욕", cityEmoji: "🗽", category: "투어", item: "맨하탄 원데이 워킹투어 (전망대, 크루즈 포함)", time: "6/3 09:00", bookingSite: "타미스", cost: "₩271,800", status: "완료", memo: "" },
-  { city: "뉴욕", cityEmoji: "🗽", category: "미술관", item: "메트로폴리탄 미술관 도슨트 투어", time: "6/2", bookingSite: "마이리얼트립", cost: "₩75,500", status: "완료", memo: "" },
-  { city: "뉴욕", cityEmoji: "🗽", category: "전망대", item: "SUMMIT One Vanderbilt 피크", time: "6/5 20:00", bookingSite: "타미스", cost: "₩157,040", status: "완료", memo: "" },
-  { city: "뉴욕", cityEmoji: "🗽", category: "공연", item: "해리포터 브로드웨이 공연", time: "6/4 19:00", bookingSite: "TodayTix / Telecharge", cost: "₩271,800", status: "미완료", memo: "" },
-  { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Keens Steakhouse", time: "6/5 17:30", bookingSite: "Resy", cost: "₩453,000", status: "완료", memo: "뉴욕 고전 스테이크하우스 (1885~)" },
-  { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Orsay 점심 (프렌치 비스트로)", time: "6/2 13:00", bookingSite: "Resy", cost: "₩181,200", status: "완료", memo: "메트 도슨트 종료 후 도보 이동" },
-  { city: "뉴욕", cityEmoji: "🗽", category: "스냅촬영", item: "DUMBO 웨딩스냅 촬영", time: "6/2 17:00", bookingSite: "리베뉴욕", cost: "₩604,000", status: "완료", memo: "" },
-  { city: "뉴욕", cityEmoji: "🗽", category: "쇼핑", item: "우드버리 아울렛 왕복 셔틀버스", time: "6/5", bookingSite: "타미스", cost: "₩108,720", status: "완료", memo: "Port Authority 4층 출발" },
-  { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Carmine's 저녁 (이탈리안)", time: "6/4 16:30", bookingSite: "OpenTable", cost: "₩120,800", status: "완료", memo: "해리포터 공연 전 저녁" },
-  { city: "마이애미", cityEmoji: "🏖️", category: "다이닝", item: "Gianni's (베르사체 맨션 런치)", time: "6/7 12:30", bookingSite: "OpenTable", cost: "₩302,000", status: "완료", memo: "풀사이드 자리 요청" },
-  { city: "마이애미", cityEmoji: "🏖️", category: "맛집", item: "Joe's Stone Crab", time: "6/8 19:00", bookingSite: "joesstonecrab.com", cost: "₩151,000", status: "주의", memo: "⚠️ 5/25(월) 13:00 KST 예약 오픈" },
-  { city: "LA", cityEmoji: "🌴", category: "테마파크", item: "유니버설 스튜디오 + Express Pass", time: "", bookingSite: "universalstudioshollywood.com", cost: "₩362,400", status: "미완료", memo: "" },
-  { city: "LA", cityEmoji: "🌴", category: "스튜디오", item: "Warner Bros Studio Tour Plus", time: "6/11 09:00", bookingSite: "wbstudiotour.com", cost: "₩483,200", status: "완료", memo: "" },
-  { city: "LA", cityEmoji: "🌴", category: "미술관", item: "The Broad (무료, 예약 필수)", time: "", bookingSite: "thebroad.org", cost: "₩0", status: "미완료", memo: "" },
-  { city: "LA", cityEmoji: "🌴", category: "렌터카", item: "LA 렌터카 (풀커버 보험)", time: "", bookingSite: "Hertz / Avis", cost: "₩604,000", status: "미완료", memo: "" },
-  { city: "LA", cityEmoji: "🌴", category: "미술관", item: "게티 센터 주차 예약", time: "6/12 09:00", bookingSite: "getty.edu", cost: "₩37,750", status: "미완료", memo: "입장 무료, 주차 예약 필수" },
-  { city: "공통", cityEmoji: "📄", category: "보험", item: "여행자보험 가입", time: "", bookingSite: "현대해상 다이렉트", cost: "₩50,300", status: "완료", memo: "" },
-  { city: "공통", cityEmoji: "📄", category: "통신", item: "eSIM (Airalo / Holafly)", time: "", bookingSite: "airalo.com", cost: "₩52,850", status: "미완료", memo: "" },
-  { city: "공통", cityEmoji: "📄", category: "서류", item: "ESTA 승인", time: "", bookingSite: "esta.cbp.dhs.gov", cost: "₩31,710", status: "완료", memo: "" },
-  { city: "공통", cityEmoji: "📄", category: "서류", item: "국제운전면허증 발급", time: "", bookingSite: "경찰서/면허시험장", cost: "₩12,080", status: "미완료", memo: "" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "투어", item: "맨하탄 원데이 워킹투어 (전망대, 크루즈 포함)", time: "6/3 09:00", bookingSite: "타미스", bookingUrl: "https://tamice.com", cost: "₩271,800", status: "완료", memo: "" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "미술관", item: "메트로폴리탄 미술관 도슨트 투어", time: "6/2", bookingSite: "마이리얼트립", bookingUrl: "https://www.myrealtrip.com", cost: "₩75,500", status: "완료", memo: "" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "전망대", item: "SUMMIT One Vanderbilt 피크", time: "6/5 20:00", bookingSite: "타미스", bookingUrl: "https://tamice.com", cost: "₩157,040", status: "완료", memo: "" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "공연", item: "해리포터 브로드웨이 공연", time: "6/4 19:00", bookingSite: "TodayTix", bookingUrl: "https://www.todaytix.com", cost: "₩271,800", status: "미완료", memo: "" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Keens Steakhouse", time: "6/5 17:30", bookingSite: "Resy", bookingUrl: "https://resy.com", cost: "₩453,000", status: "완료", memo: "뉴욕 고전 스테이크하우스 (1885~)" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Orsay 점심 (프렌치 비스트로)", time: "6/2 13:00", bookingSite: "Resy", bookingUrl: "https://resy.com", cost: "₩181,200", status: "완료", memo: "메트 도슨트 종료 후 도보 이동" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "스냅촬영", item: "DUMBO 웨딩스냅 촬영", time: "6/2 17:00", bookingSite: "리베뉴욕", bookingUrl: "", cost: "₩604,000", status: "완료", memo: "" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "쇼핑", item: "우드버리 아울렛 왕복 셔틀버스", time: "6/5", bookingSite: "타미스", bookingUrl: "https://tamice.com", cost: "₩108,720", status: "완료", memo: "Port Authority 4층 출발" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Carmine's 저녁 (이탈리안)", time: "6/4 16:30", bookingSite: "OpenTable", bookingUrl: "https://www.opentable.com", cost: "₩120,800", status: "완료", memo: "해리포터 공연 전 저녁" },
+  { city: "마이애미", cityEmoji: "🏖️", category: "다이닝", item: "Gianni's (베르사체 맨션 런치)", time: "6/7 12:30", bookingSite: "OpenTable", bookingUrl: "https://www.opentable.com", cost: "₩302,000", status: "완료", memo: "풀사이드 자리 요청" },
+  { city: "마이애미", cityEmoji: "🏖️", category: "맛집", item: "Joe's Stone Crab", time: "6/8 19:00", bookingSite: "joesstonecrab.com", bookingUrl: "https://www.joesstonecrab.com", cost: "₩151,000", status: "주의", memo: "⚠️ 5/25(월) 13:00 KST 예약 오픈" },
+  { city: "LA", cityEmoji: "🌴", category: "테마파크", item: "유니버설 스튜디오 + Express Pass", time: "", bookingSite: "유니버설", bookingUrl: "https://www.universalstudioshollywood.com", cost: "₩362,400", status: "미완료", memo: "" },
+  { city: "LA", cityEmoji: "🌴", category: "스튜디오", item: "Warner Bros Studio Tour Plus", time: "6/11 09:00", bookingSite: "워너브라더스", bookingUrl: "https://www.wbstudiotour.com", cost: "₩483,200", status: "완료", memo: "" },
+  { city: "LA", cityEmoji: "🌴", category: "미술관", item: "The Broad (무료, 예약 필수)", time: "", bookingSite: "thebroad.org", bookingUrl: "https://www.thebroad.org", cost: "₩0", status: "미완료", memo: "" },
+  { city: "LA", cityEmoji: "🌴", category: "렌터카", item: "LA 렌터카 (풀커버 보험)", time: "", bookingSite: "Hertz / Avis", bookingUrl: "https://www.hertz.com", cost: "₩604,000", status: "미완료", memo: "" },
+  { city: "LA", cityEmoji: "🌴", category: "미술관", item: "게티 센터 주차 예약", time: "6/12 09:00", bookingSite: "getty.edu", bookingUrl: "https://www.getty.edu", cost: "₩37,750", status: "미완료", memo: "입장 무료, 주차 예약 필수" },
+  { city: "공통", cityEmoji: "📄", category: "보험", item: "여행자보험 가입", time: "", bookingSite: "현대해상", bookingUrl: "https://www.hi.co.kr", cost: "₩50,300", status: "완료", memo: "" },
+  { city: "공통", cityEmoji: "📄", category: "통신", item: "eSIM (Airalo / Holafly)", time: "", bookingSite: "Airalo", bookingUrl: "https://www.airalo.com", cost: "₩52,850", status: "미완료", memo: "" },
+  { city: "공통", cityEmoji: "📄", category: "서류", item: "ESTA 승인", time: "", bookingSite: "ESTA", bookingUrl: "https://esta.cbp.dhs.gov", cost: "₩31,710", status: "완료", memo: "" },
+  { city: "공통", cityEmoji: "📄", category: "서류", item: "국제운전면허증 발급", time: "", bookingSite: "경찰서/면허시험장", bookingUrl: "", cost: "₩12,080", status: "미완료", memo: "" },
 ];
 
 // ─── 입국·서류 (Immigration) ───────────────────────────────────
