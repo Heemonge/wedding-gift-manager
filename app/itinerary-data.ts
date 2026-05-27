@@ -307,3 +307,334 @@ export const cities: CityInfo[] = [
     ],
   },
 ];
+
+// ─── 준비물 (Checklist) ────────────────────────────────────────
+
+export interface ChecklistCategory {
+  icon: string;
+  title: string;
+  items: { name: string; bride: boolean; groom: boolean; note: string }[];
+}
+
+export const checklist: ChecklistCategory[] = [
+  {
+    icon: "🛂", title: "필수 서류",
+    items: [
+      { name: "여권 (유효기간 6개월 이상)", bride: true, groom: true, note: "출국 전 반드시 확인" },
+      { name: "ESTA 승인서 출력본", bride: false, groom: false, note: "유효기간 2년" },
+      { name: "전자항공권 (e-Ticket)", bride: false, groom: false, note: "스크린샷 + 출력본" },
+      { name: "호텔 바우처 (전 일정)", bride: false, groom: false, note: "출력본 + 모바일" },
+      { name: "국제운전면허증", bride: false, groom: false, note: "LA 렌터카 시 필수" },
+      { name: "여행자보험 증서", bride: false, groom: false, note: "" },
+      { name: "여권 사본 (분실 대비)", bride: false, groom: false, note: "별도 보관" },
+      { name: "증명사진 2매", bride: false, groom: false, note: "여권 분실 시" },
+    ]
+  },
+  {
+    icon: "💳", title: "현금/카드",
+    items: [
+      { name: "여권 지갑", bride: false, groom: false, note: "" },
+      { name: "해외결제 신용카드 2장", bride: false, groom: false, note: "VISA/Master 분산" },
+      { name: "체크카드 (트래블카드)", bride: false, groom: false, note: "트래블월렛/하나 등" },
+      { name: "USD 현금", bride: false, groom: false, note: "팁/소액용 $1, $5 위주" },
+      { name: "원화 (공항용)", bride: false, groom: false, note: "" },
+    ]
+  },
+  {
+    icon: "📱", title: "전자기기",
+    items: [
+      { name: "휴대폰", bride: false, groom: false, note: "" },
+      { name: "휴대폰 충전기 + 케이블", bride: false, groom: false, note: "" },
+      { name: "보조배터리 (기내 반입만)", bride: false, groom: false, note: "위탁수하물 금지" },
+      { name: "멀티 어댑터 (110V/A타입)", bride: false, groom: false, note: "미국은 A타입 플러그" },
+      { name: "변압기", bride: false, groom: false, note: "고출력 기기용" },
+      { name: "이어폰", bride: false, groom: false, note: "" },
+      { name: "필름카메라 + 필름", bride: false, groom: false, note: "X-ray 검색대 주의" },
+      { name: "인스탁스 + 필름", bride: false, groom: false, note: "" },
+      { name: "셀카봉/짐벌", bride: false, groom: false, note: "" },
+    ]
+  },
+  {
+    icon: "👗", title: "의류 - 보현",
+    items: [
+      { name: "상의 6벌", bride: false, groom: false, note: "13박이라 +2벌 추천" },
+      { name: "하의/원피스 5벌", bride: false, groom: false, note: "" },
+      { name: "속옷 7벌", bride: false, groom: false, note: "" },
+      { name: "양말/스타킹 7켤레", bride: false, groom: false, note: "" },
+      { name: "겉옷 1벌 (가디건/자켓)", bride: false, groom: false, note: "기내/냉방용" },
+      { name: "수영복", bride: false, groom: false, note: "마이애미 비치" },
+      { name: "래시가드/비치웨어", bride: false, groom: false, note: "" },
+      { name: "잠옷 2벌", bride: false, groom: false, note: "" },
+      { name: "편한 신발 (운동화)", bride: false, groom: false, note: "많이 걸음" },
+      { name: "샌들/슬리퍼", bride: false, groom: false, note: "" },
+      { name: "드레시한 옷 1세트", bride: false, groom: false, note: "고급 레스토랑/공연" },
+      { name: "선글라스", bride: false, groom: false, note: "" },
+      { name: "양산/모자", bride: false, groom: false, note: "햇빛 강함" },
+    ]
+  },
+  {
+    icon: "👕", title: "의류 - 채연",
+    items: [
+      { name: "상의 6벌", bride: false, groom: false, note: "" },
+      { name: "하의 5벌", bride: false, groom: false, note: "" },
+      { name: "속옷 7벌", bride: false, groom: false, note: "" },
+      { name: "양말 7켤레", bride: false, groom: false, note: "" },
+      { name: "겉옷 1벌 (가디건/자켓)", bride: false, groom: false, note: "" },
+      { name: "수영복", bride: false, groom: false, note: "마이애미 비치" },
+      { name: "래시가드", bride: false, groom: false, note: "" },
+      { name: "잠옷 2벌", bride: false, groom: false, note: "" },
+      { name: "편한 신발 (운동화)", bride: false, groom: false, note: "" },
+      { name: "슬리퍼/샌들", bride: false, groom: false, note: "" },
+      { name: "드레시한 옷 1세트", bride: false, groom: false, note: "고급 레스토랑/공연" },
+      { name: "선글라스", bride: false, groom: false, note: "" },
+      { name: "모자", bride: false, groom: false, note: "" },
+      { name: "크로스백", bride: false, groom: false, note: "" },
+    ]
+  },
+  {
+    icon: "🧴", title: "세면도구/화장품 (공용)",
+    items: [
+      { name: "칫솔 2개", bride: false, groom: false, note: "" },
+      { name: "치약", bride: false, groom: false, note: "" },
+      { name: "샴푸/린스 (소분)", bride: false, groom: false, note: "100ml 이하" },
+      { name: "바디워시 (소분)", bride: false, groom: false, note: "" },
+      { name: "샤워타올", bride: false, groom: false, note: "" },
+      { name: "수건 1~2장", bride: false, groom: false, note: "호텔에 있지만 비치용" },
+      { name: "면도기 (전기/일회용)", bride: false, groom: false, note: "" },
+      { name: "헤어드라이기", bride: false, groom: false, note: "호텔에 있긴 함" },
+      { name: "헤어 고데기", bride: false, groom: false, note: "변압기 필요" },
+      { name: "빗", bride: false, groom: false, note: "" },
+    ]
+  },
+  {
+    icon: "💊", title: "상비약",
+    items: [
+      { name: "감기약/해열제", bride: false, groom: false, note: "" },
+      { name: "소화제", bride: false, groom: false, note: "" },
+      { name: "지사제", bride: false, groom: false, note: "" },
+      { name: "진통제 (타이레놀)", bride: false, groom: false, note: "" },
+      { name: "멀미약", bride: false, groom: false, note: "" },
+      { name: "밴드/거즈", bride: false, groom: false, note: "데일밴드" },
+      { name: "연고 (마데카솔/후시딘)", bride: false, groom: false, note: "" },
+      { name: "숙취해소제", bride: false, groom: false, note: "" },
+      { name: "개인 처방약", bride: false, groom: false, note: "영문 처방전 동봉" },
+    ]
+  },
+  {
+    icon: "🌞", title: "여름/비치용품",
+    items: [
+      { name: "선크림 (바디용 대용량)", bride: false, groom: false, note: "" },
+      { name: "애프터선/알로에젤", bride: false, groom: false, note: "" },
+      { name: "쿨링스프레이", bride: false, groom: false, note: "" },
+      { name: "손풍기", bride: false, groom: false, note: "" },
+      { name: "모기퇴치제/스티커", bride: false, groom: false, note: "" },
+      { name: "방수팩", bride: false, groom: false, note: "비치/수영장" },
+    ]
+  },
+  {
+    icon: "🎒", title: "기타",
+    items: [
+      { name: "캐리어 (위탁)", bride: false, groom: false, note: "" },
+      { name: "기내용 캐리어/백팩", bride: false, groom: false, note: "" },
+      { name: "보조가방 (관광용)", bride: false, groom: false, note: "" },
+      { name: "에코백/장보기 가방", bride: false, groom: false, note: "" },
+      { name: "지퍼백 (소분/방수)", bride: false, groom: false, note: "여러 사이즈" },
+      { name: "빨래망/세탁세제 시트", bride: false, groom: false, note: "장기 여행" },
+      { name: "우산/우비", bride: false, groom: false, note: "" },
+      { name: "목베개/안대/귀마개", bride: false, groom: false, note: "기내용" },
+      { name: "압축팩", bride: false, groom: false, note: "옷 부피 줄임" },
+      { name: "토끼인형", bride: false, groom: false, note: "🐰" },
+    ]
+  },
+];
+
+// ─── 사전예약 (Reservations) ───────────────────────────────────
+
+export interface Reservation {
+  city: string;
+  cityEmoji: string;
+  category: string;
+  item: string;
+  time: string;
+  bookingSite: string;
+  cost: string;
+  status: "완료" | "미완료" | "주의";
+  memo: string;
+}
+
+export const reservations: Reservation[] = [
+  { city: "뉴욕", cityEmoji: "🗽", category: "투어", item: "맨하탄 원데이 워킹투어 (전망대, 크루즈 포함)", time: "6/3 09:00", bookingSite: "타미스", cost: "₩271,800", status: "완료", memo: "" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "미술관", item: "메트로폴리탄 미술관 도슨트 투어", time: "6/2", bookingSite: "마이리얼트립", cost: "₩75,500", status: "완료", memo: "" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "전망대", item: "SUMMIT One Vanderbilt 피크", time: "6/5 20:00", bookingSite: "타미스", cost: "₩157,040", status: "완료", memo: "" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "공연", item: "해리포터 브로드웨이 공연", time: "6/4 19:00", bookingSite: "TodayTix / Telecharge", cost: "₩271,800", status: "미완료", memo: "" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Keens Steakhouse", time: "6/5 17:30", bookingSite: "Resy", cost: "₩453,000", status: "완료", memo: "뉴욕 고전 스테이크하우스 (1885~)" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Orsay 점심 (프렌치 비스트로)", time: "6/2 13:00", bookingSite: "Resy", cost: "₩181,200", status: "완료", memo: "메트 도슨트 종료 후 도보 이동" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "스냅촬영", item: "DUMBO 웨딩스냅 촬영", time: "6/2 17:00", bookingSite: "리베뉴욕", cost: "₩604,000", status: "완료", memo: "" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "쇼핑", item: "우드버리 아울렛 왕복 셔틀버스", time: "6/5", bookingSite: "타미스", cost: "₩108,720", status: "완료", memo: "Port Authority 4층 출발" },
+  { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Carmine's 저녁 (이탈리안)", time: "6/4 16:30", bookingSite: "OpenTable", cost: "₩120,800", status: "완료", memo: "해리포터 공연 전 저녁" },
+  { city: "마이애미", cityEmoji: "🏖️", category: "다이닝", item: "Gianni's (베르사체 맨션 런치)", time: "6/7 12:30", bookingSite: "OpenTable", cost: "₩302,000", status: "완료", memo: "풀사이드 자리 요청" },
+  { city: "마이애미", cityEmoji: "🏖️", category: "맛집", item: "Joe's Stone Crab", time: "6/8 19:00", bookingSite: "joesstonecrab.com", cost: "₩151,000", status: "주의", memo: "⚠️ 5/25(월) 13:00 KST 예약 오픈" },
+  { city: "LA", cityEmoji: "🌴", category: "테마파크", item: "유니버설 스튜디오 + Express Pass", time: "", bookingSite: "universalstudioshollywood.com", cost: "₩362,400", status: "미완료", memo: "" },
+  { city: "LA", cityEmoji: "🌴", category: "스튜디오", item: "Warner Bros Studio Tour Plus", time: "6/11 09:00", bookingSite: "wbstudiotour.com", cost: "₩483,200", status: "완료", memo: "" },
+  { city: "LA", cityEmoji: "🌴", category: "미술관", item: "The Broad (무료, 예약 필수)", time: "", bookingSite: "thebroad.org", cost: "₩0", status: "미완료", memo: "" },
+  { city: "LA", cityEmoji: "🌴", category: "렌터카", item: "LA 렌터카 (풀커버 보험)", time: "", bookingSite: "Hertz / Avis", cost: "₩604,000", status: "미완료", memo: "" },
+  { city: "LA", cityEmoji: "🌴", category: "미술관", item: "게티 센터 주차 예약", time: "6/12 09:00", bookingSite: "getty.edu", cost: "₩37,750", status: "미완료", memo: "입장 무료, 주차 예약 필수" },
+  { city: "공통", cityEmoji: "📄", category: "보험", item: "여행자보험 가입", time: "", bookingSite: "현대해상 다이렉트", cost: "₩50,300", status: "완료", memo: "" },
+  { city: "공통", cityEmoji: "📄", category: "통신", item: "eSIM (Airalo / Holafly)", time: "", bookingSite: "airalo.com", cost: "₩52,850", status: "미완료", memo: "" },
+  { city: "공통", cityEmoji: "📄", category: "서류", item: "ESTA 승인", time: "", bookingSite: "esta.cbp.dhs.gov", cost: "₩31,710", status: "완료", memo: "" },
+  { city: "공통", cityEmoji: "📄", category: "서류", item: "국제운전면허증 발급", time: "", bookingSite: "경찰서/면허시험장", cost: "₩12,080", status: "미완료", memo: "" },
+];
+
+// ─── 입국·서류 (Immigration) ───────────────────────────────────
+
+export interface QnA {
+  question: string;
+  answer: string;
+}
+
+export interface TableRow {
+  label: string;
+  value: string;
+}
+
+export interface ImmigrationSection {
+  icon: string;
+  title: string;
+  type: "qa" | "table" | "contacts";
+  items: QnA[] | TableRow[];
+}
+
+export const immigration: ImmigrationSection[] = [
+  {
+    icon: "✏️", title: "입국심사 예상 질문", type: "qa",
+    items: [
+      { question: "What's the purpose of your visit?", answer: "Tourism. Honeymoon trip with my spouse." },
+      { question: "How long are you staying?", answer: "13 nights, 14 days. Returning to Korea on June 13." },
+      { question: "Where will you stay?", answer: "New York: Millennium Hilton UN Plaza / Miami: Loews Miami Beach / LA: Glendale Airbnb" },
+      { question: "Are you traveling alone?", answer: "No, I'm with my husband/wife." },
+      { question: "Do you have a return ticket?", answer: "Yes, here it is. (e-Ticket 보여주기)" },
+      { question: "How much money do you have?", answer: "About $XXX in cash and credit cards." },
+    ] as QnA[]
+  },
+  {
+    icon: "🏨", title: "호텔 주소 (입국심사용)", type: "table",
+    items: [
+      { label: "뉴욕", value: "Millennium Hilton New York One UN Plaza, 1 United Nations Plaza, New York, NY 10017" },
+      { label: "마이애미", value: "Loews Miami Beach Hotel, 1601 Collins Ave, Miami Beach, FL 33139" },
+      { label: "LA", value: "Glendale, Los Angeles, CA (에어비앤비)" },
+    ] as TableRow[]
+  },
+  {
+    icon: "💰", title: "면세 / 세관신고 (귀국시)", type: "table",
+    items: [
+      { label: "1인당 면세한도", value: "$800 (초과 시 자진 신고)" },
+      { label: "술", value: "1병 (1L 이하, $400 이하)" },
+      { label: "담배", value: "200개비 (1보루)" },
+      { label: "향수", value: "60ml 이하" },
+      { label: "현금반출", value: "$10,000 초과 시 신고 필수" },
+    ] as TableRow[]
+  },
+  {
+    icon: "⚠️", title: "긴급연락처", type: "contacts",
+    items: [
+      { label: "주미국 한국대사관", value: "1-202-939-5600" },
+      { label: "주뉴욕 총영사관", value: "+1-646-674-6000" },
+      { label: "주LA 총영사관", value: "1-213-385-9300" },
+      { label: "영사콜센터 (24시간)", value: "82-2-3210-0404" },
+      { label: "미국 응급전화", value: "911" },
+    ] as TableRow[]
+  },
+  {
+    icon: "💳", title: "팁 가이드", type: "table",
+    items: [
+      { label: "레스토랑 식사", value: "세전 금액의 18~22%" },
+      { label: "카페/패스트푸드", value: "$1~2" },
+      { label: "우버/택시", value: "15~20%" },
+      { label: "호텔 벨맨", value: "가방 1개당 $1~2" },
+      { label: "호텔 청소", value: "하루 $2~5 (머릿맡에)" },
+      { label: "발레 주차", value: "각 $2~5" },
+      { label: "투어 가이드", value: "투어 비용의 10~15%" },
+    ] as TableRow[]
+  },
+];
+
+// ─── 총예산 (Budget) ───────────────────────────────────────────
+
+export interface BudgetItem {
+  category: string;
+  item: string;
+  usd: string;
+  krw: string;
+  memo: string;
+}
+
+export const budget: { exchangeRate: string; total: { usd: string; krw: string }; items: BudgetItem[] } = {
+  exchangeRate: "1,480",
+  total: { usd: "$14,570.50", krw: "₩21,564,339" },
+  items: [
+    { category: "✈️ 항공", item: "ICN↔EWR/LAX 왕복 (에어프레미아, 2인)", usd: "$1,211.76", krw: "₩1,793,400", memo: "✅ 결제완료" },
+    { category: "✈️ 항공", item: "JFK→MIA 델타 (2인)", usd: "$214.88", krw: "₩318,022", memo: "✅ 결제완료" },
+    { category: "✈️ 항공", item: "FLL→LAX 제트블루 (2인)", usd: "$380.41", krw: "₩563,000", memo: "✅ 결제완료" },
+    { category: "🏨 호텔", item: "뉴욕 밀레니엄 힐튼 (5박)", usd: "$1,851.40", krw: "₩2,740,070", memo: "✅ 결제완료" },
+    { category: "🏨 호텔", item: "마이애미 로우스 (3박)", usd: "$1,393.71", krw: "₩2,062,698", memo: "✅ 결제완료" },
+    { category: "🏨 호텔", item: "LA 에어비앤비 (4박)", usd: "$947.72", krw: "₩1,402,628", memo: "✅ 결제완료" },
+    { category: "🚗 교통", item: "LA 렌터카 (4일, 보험포함)", usd: "$400.00", krw: "₩592,000", memo: "" },
+    { category: "🚗 교통", item: "우버/택시 (NY+MIA+공항)", usd: "$350.00", krw: "₩518,000", memo: "" },
+    { category: "🚗 교통", item: "NY 지하철 OMNY (2인 5일)", usd: "$80.00", krw: "₩118,400", memo: "" },
+    { category: "⛽ 주유·주차", item: "LA 주유·주차", usd: "$200.00", krw: "₩296,000", memo: "" },
+    { category: "🏨 현지결제", item: "뉴욕 Destination Fee", usd: "$199.14", krw: "₩294,730", memo: "" },
+    { category: "🏨 현지결제", item: "마이애미 Resort Fee", usd: "$150.48", krw: "₩222,710", memo: "" },
+    { category: "🏨 현지결제", item: "마이애미 조식", usd: "$252.00", krw: "₩372,960", memo: "" },
+    { category: "🍽️ 식비", item: "조식+점심+저녁 x 14일 x 2인 (팁 포함)", usd: "$4,704.00", krw: "₩6,961,920", memo: "" },
+    { category: "🍽️ 식비", item: "파인다이닝 2회 (NY+LA)", usd: "$600.00", krw: "₩888,000", memo: "" },
+    { category: "🛍️ 쇼핑", item: "5번가 쇼핑 예산", usd: "$1,000.00", krw: "₩1,480,000", memo: "" },
+    { category: "📱 통신/보험", item: "eSIM 2인 + 여행자보험", usd: "$135.00", krw: "₩199,800", memo: "" },
+    { category: "💵 예비·기타", item: "팁 추가, 잡비", usd: "$500.00", krw: "₩740,000", memo: "" },
+  ]
+};
+
+// ─── 보험보장 (Insurance) ──────────────────────────────────────
+
+export interface InsuranceItem {
+  category: string;
+  name: string;
+  amount: string;
+  note: string;
+}
+
+export const insurance: {
+  info: { planNumber: string; period: string; holder: string; premium: string };
+  coverages: InsuranceItem[];
+  warnings: string[];
+  claimPhone: string;
+} = {
+  info: {
+    planNumber: "F-26DA-0123973",
+    period: "2026.06.01 21:00 ~ 2026.06.14 15:00",
+    holder: "김채연 (총 2명)",
+    premium: "50,300원",
+  },
+  coverages: [
+    { category: "✈️ 일정", name: "출국항공기 지연보장", amount: "₩100,000", note: "2시간 이상 지연/결항" },
+    { category: "✈️ 일정", name: "항공기 및 수하물 지연비용", amount: "₩300,000", note: "실손보상" },
+    { category: "🏥 상해/질병", name: "상해사망·후유장해", amount: "₩3억", note: "" },
+    { category: "🏥 상해/질병", name: "질병사망 및 80% 고도후유장해", amount: "₩5,000만", note: "" },
+    { category: "🏥 상해/질병", name: "해외 상해 의료실비", amount: "₩5,000만", note: "" },
+    { category: "🏥 상해/질병", name: "해외 질병 의료실비", amount: "₩5,000만", note: "" },
+    { category: "🏥 상해/질병", name: "식중독 입원", amount: "₩300,000", note: "" },
+    { category: "🏥 상해/질병", name: "상해입원일당", amount: "₩30,000", note: "1일당" },
+    { category: "🆘 사고", name: "중대사고 구조송환비용", amount: "₩5,000만", note: "7일 이상" },
+    { category: "🆘 사고", name: "여행 중단 추가비용", amount: "₩300,000", note: "" },
+    { category: "🆘 사고", name: "여권분실 재발급비용", amount: "₩200,000", note: "" },
+    { category: "💼 물품", name: "휴대품 손해 (분실 제외)", amount: "₩200만", note: "물품당 20만 한도" },
+    { category: "⚖️ 배상", name: "일괄배상 (해외여행중)", amount: "₩5,000만", note: "자기부담금 1만원" },
+  ],
+  warnings: [
+    "현금·여권·항공권·신용카드는 휴대품으로 인정 안 됨",
+    "단순 분실은 보상 ✕ (도난만 보장)",
+    "도난 시 현지 경찰서 Police Report 필수",
+    "의료비 청구: 현지 진료장·영문 진단서·영수증 보관 필수",
+    "외교부 적색/흑색 경보 지역 방문 시 보상 ✕",
+  ],
+  claimPhone: "1588-5656",
+};
