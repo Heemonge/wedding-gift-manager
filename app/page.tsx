@@ -308,6 +308,42 @@ export default function Home() {
       );
     }
 
+    if (field === "note") {
+      if (isEditing) {
+        return (
+          <input
+            ref={inputRef}
+            type="text"
+            className="w-full h-full px-2 py-2 border border-blue-300 outline-none bg-blue-50 rounded"
+            value={entry.note}
+            onChange={(e) => updateEntry(entry.id, "note", e.target.value)}
+            onBlur={handleCellBlur}
+            onKeyDown={(e) => handleKeyDown(e, entry.id, field)}
+            placeholder="비고"
+          />
+        );
+      }
+      return (
+        <div className="flex items-center gap-1">
+          <span className="block px-2 truncate flex-1">
+            {entry.note || ""}
+          </span>
+          {!isEmpty && (
+            <button
+              onClick={() => updateEntry(entry.id, "note", entry.note === "계좌송금" ? "" : "계좌송금")}
+              className={`px-2 py-0.5 rounded text-xs shrink-0 transition-colors ${
+                entry.note === "계좌송금"
+                  ? "bg-green-500 text-white"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              계좌송금
+            </button>
+          )}
+        </div>
+      );
+    }
+
     if (isEditing) {
       return (
         <input
@@ -318,7 +354,7 @@ export default function Home() {
           onChange={(e) => updateEntry(entry.id, field, e.target.value)}
           onBlur={handleCellBlur}
           onKeyDown={(e) => handleKeyDown(e, entry.id, field)}
-          placeholder={field === "name" ? "이름 입력" : "비고"}
+          placeholder="이름 입력"
         />
       );
     }
@@ -326,9 +362,7 @@ export default function Home() {
     return (
       <span className="block px-2 truncate">
         {(entry[field] as string) || (
-          <span className="text-gray-300">
-            {field === "name" ? "이름 입력" : ""}
-          </span>
+          <span className="text-gray-300">이름 입력</span>
         )}
       </span>
     );
