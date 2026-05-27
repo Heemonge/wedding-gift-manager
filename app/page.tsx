@@ -1063,7 +1063,10 @@ export default function Home() {
               <span className="text-lg font-semibold text-amber-700 group-hover:text-amber-800">축의금 관리</span>
             </button>
             <button
-              onClick={() => setPage("itinerary")}
+              onClick={() => {
+                const pw = prompt("비밀번호를 입력하세요");
+                if (pw === "8789") setPage("itinerary");
+              }}
               className="w-48 h-48 bg-white border-2 border-teal-200 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-teal-500 hover:shadow-lg transition-all group"
             >
               <span className="text-5xl">✈️</span>
