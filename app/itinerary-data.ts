@@ -12,12 +12,19 @@ export interface DaySchedule {
   items: ScheduleItem[];
 }
 
+export interface AirportInfo {
+  code: string;
+  name: string;
+  terminal: string;
+}
+
 export interface CityInfo {
   name: string;
   emoji: string;
   period: string;
   hotel: string;
   flight: string;
+  airports: AirportInfo[];
   days: DaySchedule[];
 }
 
@@ -28,6 +35,10 @@ export const cities: CityInfo[] = [
     period: "6/1~6/5",
     hotel: "밀레니엄 힐튼 뉴욕 유엔 원플라자",
     flight: "에어프레미아 YP0131 | 6/1 21:30 ICN → 22:30 EWR",
+    airports: [
+      { code: "EWR", name: "뉴어크 리버티 국제공항", terminal: "Terminal B" },
+      { code: "JFK", name: "존 F. 케네디 국제공항", terminal: "Terminal 4 (델타)" },
+    ],
     days: [
       {
         day: "1일차",
@@ -147,6 +158,10 @@ export const cities: CityInfo[] = [
     period: "6/6~6/8",
     hotel: "로우스 마이애미 비치 호텔",
     flight: "델타 DL1514 | 6/6 11:05 JFK → 14:19 MIA",
+    airports: [
+      { code: "MIA", name: "마이애미 국제공항", terminal: "" },
+      { code: "FLL", name: "포트로더데일 국제공항", terminal: "Terminal 3 (제트블루)" },
+    ],
     days: [
       {
         day: "1일차",
@@ -223,6 +238,9 @@ export const cities: CityInfo[] = [
     period: "6/9~6/13",
     hotel: "Glendale 에어비앤비",
     flight: "제트블루 B62801 | 6/9 09:20 FLL → 12:04 LAX\n귀국: 에어프레미아 YP0102 | 6/13 10:50 LAX → 6/14 15:45 ICN",
+    airports: [
+      { code: "LAX", name: "로스앤젤레스 국제공항", terminal: "Terminal 1 (제트블루 도착) / TBIT (에어프레미아 출발)" },
+    ],
     days: [
       {
         day: "1일차",

@@ -242,6 +242,20 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
                   <span className="text-teal-600 shrink-0 mt-0.5">✈️</span>
                   <span className="text-gray-700 whitespace-pre-line">{city.flight}</span>
                 </div>
+                {city.airports.map((ap) => (
+                  <div key={ap.code} className="flex items-start gap-2 text-sm">
+                    <span className="text-teal-600 shrink-0 mt-0.5">🛫</span>
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ap.name)}&travelmode=transit`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-teal-600 underline"
+                    >
+                      {ap.code} — {ap.name}
+                    </a>
+                    {ap.terminal && <span className="text-xs text-gray-400 mt-0.5">({ap.terminal})</span>}
+                  </div>
+                ))}
               </div>
             </div>
 
