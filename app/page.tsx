@@ -92,6 +92,7 @@ export default function Home() {
   const [initializing, setInitializing] = useState(true);
   const [editingCell, setEditingCell] = useState<{ id: string; field: EditableField } | null>(null);
   const [config, setConfig] = useState<TicketConfig>({ ticketPrice: DEFAULT_TICKET_PRICE, groomTickets: DEFAULT_TOTAL_TICKETS, brideTickets: DEFAULT_TOTAL_TICKETS, guaranteedGuests: DEFAULT_GUARANTEED_GUESTS });
+  const [showConfig, setShowConfig] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const captureRef = useRef<HTMLDivElement | null>(null);
 
@@ -502,8 +503,15 @@ export default function Home() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">축의금 관리</h1>
           <p className="text-gray-500 mb-6">관리할 측을 선택하세요</p>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6 w-full max-w-sm mx-auto text-left">
-            <p className="text-xs font-semibold text-gray-500 mb-3">식권 설정</p>
+          <div className="mb-6 w-full max-w-sm mx-auto">
+            <button
+              onClick={() => setShowConfig(!showConfig)}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              {showConfig ? "설정 닫기" : "식권 설정"}
+            </button>
+          </div>
+          {showConfig && <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6 w-full max-w-sm mx-auto text-left">
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <label className="text-sm text-gray-700 shrink-0">보증 인원</label>
@@ -570,7 +578,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </div>
+          </div>}
 
           <div className="flex gap-6 mb-8">
             <button
