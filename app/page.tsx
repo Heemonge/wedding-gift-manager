@@ -666,16 +666,6 @@ export default function Home() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-4" ref={captureRef}>
-        <div className="flex gap-3 mb-4 text-sm">
-          <div className="bg-white rounded-lg border border-gray-200 p-3 flex-1">
-            <p className="text-xs text-gray-500">축의금 합계</p>
-            <p className="text-xl font-bold text-gray-900 mt-1">
-              ₩{summary.totalAmount.toLocaleString("ko-KR")}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">{summary.count}건 / {summary.people}명 / 식권 {summary.tickets}장</p>
-          </div>
-        </div>
-
         <div className="bg-white rounded-lg border-2 border-gray-300 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
