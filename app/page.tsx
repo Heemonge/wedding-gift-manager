@@ -653,7 +653,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-2">
             <span className={`text-xs px-2 py-1 rounded ${sideColor === "blue" ? "bg-blue-100 text-blue-700" : "bg-pink-100 text-pink-700"}`}>
-              식권 단가 ₩{config.ticketPrice.toLocaleString("ko-KR")} / 총 {totalTicketsForSide}장 (잔여 {remainingTickets}장)
+              식권 {summary.tickets} / {totalTicketsForSide}장 (잔여 {remainingTickets}장)
             </span>
             <button
               onClick={() => handleDownload(`${sideLabel}측_축의금`)}
