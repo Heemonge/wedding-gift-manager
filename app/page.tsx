@@ -127,6 +127,21 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
 
   const [exchangeInput, setExchangeInput] = useState("");
   const [exchangeDir, setExchangeDir] = useState<"usd2krw" | "krw2usd">("usd2krw");
+  const [spending, setSpending] = useState<Record<number, number>>({});
+  const [editingSpend, setEditingSpend] = useState<number | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("wedding-spending");
+    if (saved) setSpending(JSON.parse(saved));
+  }, []);
+
+  const updateSpending = (idx: number, value: number) => {
+    setSpending((prev) => {
+      const next = { ...prev, [idx]: value };
+      localStorage.setItem("wedding-spending", JSON.stringify(next));
+      return next;
+    });
+  };
 
   const DEPARTURE_DATE = new Date(2026, 5, 1);
   const today = new Date();
@@ -552,11 +567,31 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
       {section === "budget" && (
         <main className="max-w-2xl mx-auto px-4 py-4 pb-12">
           {/* Total Card */}
-          <div className="bg-teal-700 text-white rounded-xl p-4 mb-4">
-            <p className="text-xs text-teal-200 mb-1">총 예상 비용 (환율 ₩{budget.exchangeRate})</p>
-            <p className="text-2xl font-bold">{budget.total.krw}</p>
-            <p className="text-sm text-teal-200 mt-0.5">{budget.total.usd}</p>
-          </div>
+          {(() => {
+            const totalBudgetKrw = parseInt(budget.total.krw.replace(/[^0-9]/g, ""));
+            const totalSpent = Object.values(spending).reduce((s, v) => s + v, 0);
+            const remaining = totalBudgetKrw - totalSpent;
+            const pct = totalBudgetKrw > 0 ? Math.min(100, Math.round((totalSpent / totalBudgetKrw) * 100)) : 0;
+            return (
+              <div className="bg-teal-700 text-white rounded-xl p-4 mb-4">
+                <p className="text-xs text-teal-200 mb-1">총 예상 비용 (환율 ₩{budget.exchangeRate})</p>
+                <p className="text-2xl font-bold">{budget.total.krw}</p>
+                <div className="mt-3 space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-teal-200">사용</span>
+                    <span>₩{totalSpent.toLocaleString("ko-KR")}</span>
+                  </div>
+                  <div className="h-2 bg-teal-900 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${pct > 90 ? "bg-red-400" : pct > 70 ? "bg-yellow-400" : "bg-teal-300"}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-teal-200">잔여</span>
+                    <span className={remaining < 0 ? "text-red-300" : ""}>₩{remaining.toLocaleString("ko-KR")}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Currency Calculator */}
           <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
@@ -593,21 +628,56 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
 
           {/* Budget List */}
           <div className="space-y-2">
-            {budget.items.map((item, idx) => (
-              <div key={idx} className="bg-white rounded-lg border border-gray-200 px-4 py-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-gray-800">{item.category}</span>
-                    <p className="text-xs text-gray-500 mt-0.5">{item.item}</p>
+            {budget.items.map((item, idx) => {
+              const budgetKrw = parseInt(item.krw.replace(/[^0-9]/g, "")) || 0;
+              const spent = spending[idx] || 0;
+              const itemRemaining = budgetKrw - spent;
+              return (
+                <div key={idx} className="bg-white rounded-lg border border-gray-200 px-4 py-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-gray-800">{item.category}</span>
+                      <p className="text-xs text-gray-500 mt-0.5">{item.item}</p>
+                    </div>
+                    <div className="text-right shrink-0 ml-3">
+                      <p className="text-sm font-semibold text-gray-900">{item.krw}</p>
+                      <p className="text-xs text-gray-400">{item.usd}</p>
+                    </div>
                   </div>
-                  <div className="text-right shrink-0 ml-3">
-                    <p className="text-sm font-semibold text-gray-900">{item.krw}</p>
-                    <p className="text-xs text-gray-400">{item.usd}</p>
+                  {item.memo && <p className="text-xs text-green-600 mt-1">{item.memo}</p>}
+                  <div className="mt-2 flex items-center gap-2">
+                    {editingSpend === idx ? (
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoFocus
+                        className="flex-1 px-2 py-1 border border-teal-300 rounded text-sm text-right bg-teal-50 focus:outline-none"
+                        value={spent === 0 ? "" : spent.toString()}
+                        onChange={(e) => {
+                          const num = parseInt(e.target.value.replace(/[^0-9]/g, ""), 10);
+                          updateSpending(idx, isNaN(num) ? 0 : num);
+                        }}
+                        onBlur={() => setEditingSpend(null)}
+                        onKeyDown={(e) => { if (e.key === "Enter") setEditingSpend(null); }}
+                        placeholder="사용 금액 (원)"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditingSpend(idx)}
+                        className="flex-1 text-left text-xs px-2 py-1 rounded bg-gray-50 text-gray-400 hover:bg-gray-100"
+                      >
+                        {spent > 0 ? `사용: ₩${spent.toLocaleString("ko-KR")}` : "사용 금액 입력"}
+                      </button>
+                    )}
+                    {spent > 0 && (
+                      <span className={`text-xs font-medium shrink-0 ${itemRemaining >= 0 ? "text-teal-600" : "text-red-500"}`}>
+                        잔여 ₩{itemRemaining.toLocaleString("ko-KR")}
+                      </span>
+                    )}
                   </div>
                 </div>
-                {item.memo && <p className="text-xs text-green-600 mt-1">{item.memo}</p>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </main>
       )}
