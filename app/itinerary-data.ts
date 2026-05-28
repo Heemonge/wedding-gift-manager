@@ -196,7 +196,7 @@ export const cities: CityInfo[] = [
           { time: "18:00~19:00", place: "링컨로드", transport: "🚶", activity: "저녁 준비 / 링컨로드" },
           { time: "19:00~20:00", place: "링컨로드", transport: "🍝", activity: "링컨로드 저녁" },
           { time: "21:00~22:00", place: "Sweet Liberty", transport: "🍸", activity: "🍸 Sweet Liberty", memo: "🍸 Sweet Liberty Drinks & Supply\n• 237 20th St (Lincoln Rd 근처)\n• 21+ 신분증 (여권 필수)\n• 명물: $3 굴 해피아워 (16~19시) — 늦으면 NO\n• 추천 칵테일: French 75, Mai Tai\n• 캐주얼 OK (반바지/셔츠)" },
-          { time: "23:00~00:00", place: "클럽", transport: "🚕", activity: "🪩 클럽", memo: "🪩 마이애미 클럽 옵션\n• LIV @ Fontainebleau — 가장 유명, 입장료 $50+ + 테이블 비쌈\n• E11even — 24시간, 음악 다양\n• Story / Basement — EDM\n• ⚠️ 21+ 신분증 (여권), 드레스코드 (남: 셔츠/긴바지, 운동화 X / 여: 자유롭지만 캐주얼 X)\n• 입장 줄 길음 → Guestlist 등록 또는 도착 일찍\n• 음료 1잔 $20~30, 팁 별도\n• 가방 작게 (큰 가방 X)" },
+          { time: "23:00~00:00", place: "클럽", transport: "🚕", activity: "🪩 클럽", memo: "🪩 마이애미 클럽 옵션\n• LIV @ Fontainebleau — 가장 유명, 입장료 $50+ + 테이블 비쌈\n• E11even — 24시간, 음악 다양\n• Story / Basement — EDM\n• ⚠️ 21+ 신분증 (여권), 드레스코드 (남: 셔츠/긴바지, 운동화 X / 여: 자유롭지만 캐주얼 X)\n• 입장 줄 길음 → Guestlist 등록 또는 도착 일찍\n• 음료 1잔 $20~30, 팁 별도\n• 가방 작게 (큰 가방 X)\n\n🚖 호텔 복귀 (새벽)\n• 우버/리프트 추천 (택시 더 비쌈)\n• LIV → Loews ~$15-25 (5분, 같은 콜린스 애비뉴)\n• E11even (다운타운) → Loews ~$25-40 (15~20분)\n• ⚠️ 새벽 1~4시 서지 (1.5~2.5배 가격)\n• 클럽 앞 호객 택시·리무진 거절 (바가지)\n• 픽업 위치: 'Rideshare Pickup' 표지판 또는 클럽 옆 골목\n• 차량 번호판 + 운전자 사진 반드시 확인 후 탑승\n• 2인 함께 타기 (절대 따로 X)" },
         ],
       },
       {
