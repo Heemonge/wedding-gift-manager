@@ -21,7 +21,16 @@ import {
   deleteGiftRow,
   fetchConfigRow,
   saveConfigRow,
+  fetchChecklist,
+  insertChecklistItems,
+  upsertChecklistItem,
+  deleteChecklistItem,
+  fetchExpenses,
+  insertExpense,
+  deleteExpense,
   type GiftRow,
+  type ChecklistRow,
+  type ExpenseRow,
 } from "./lib/supabase";
 
 const DEFAULT_TICKET_PRICE = 65000;
@@ -195,6 +204,78 @@ function calcSummary(entries: GiftEntry[], ticketPrice: number) {
 
 type ItinerarySection = "schedule" | "checklist" | "reservations" | "immigration" | "budget" | "insurance";
 
+const CITY_GEO: Record<string, { lat: number; lon: number; tz: string }> = {
+  "뉴욕": { lat: 40.7128, lon: -74.006, tz: "America/New_York" },
+  "마이애미": { lat: 25.7617, lon: -80.1918, tz: "America/New_York" },
+  "LA": { lat: 34.0522, lon: -118.2437, tz: "America/Los_Angeles" },
+};
+
+const KOREA_TZ = "Asia/Seoul";
+
+function weatherCodeToEmoji(code: number): string {
+  if (code === 0) return "☀️";
+  if (code <= 3) return "🌤";
+  if (code === 45 || code === 48) return "🌫";
+  if ((code >= 51 && code <= 57) || (code >= 80 && code <= 82)) return "🌦";
+  if (code >= 61 && code <= 67) return "🌧";
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "🌨";
+  if (code >= 95) return "⛈";
+  return "☁️";
+}
+
+interface DailyForecast {
+  date: string;
+  tMax: number;
+  tMin: number;
+  code: number;
+  precipMax: number;
+}
+
+async function fetchWeather(lat: number, lon: number, tz: string): Promise<DailyForecast[]> {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max&timezone=${encodeURIComponent(tz)}&forecast_days=7&temperature_unit=celsius`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const json = await res.json();
+    const days: DailyForecast[] = [];
+    const len = json?.daily?.time?.length ?? 0;
+    for (let i = 0; i < len; i++) {
+      days.push({
+        date: json.daily.time[i],
+        tMax: Math.round(json.daily.temperature_2m_max[i]),
+        tMin: Math.round(json.daily.temperature_2m_min[i]),
+        code: json.daily.weather_code[i] ?? 0,
+        precipMax: json.daily.precipitation_probability_max[i] ?? 0,
+      });
+    }
+    return days;
+  } catch (e) {
+    console.error("fetchWeather", e);
+    return [];
+  }
+}
+
+function getCurrentTripCity(): string | null {
+  const today = new Date();
+  const m = today.getMonth() + 1;
+  const d = today.getDate();
+  if (today.getFullYear() !== 2026) return null;
+  // NYC: 6/1-6/5, Miami: 6/6-6/9, LA: 6/10-6/14 (approximate from itinerary)
+  if (m === 6 && d >= 1 && d <= 5) return "뉴욕";
+  if (m === 6 && d >= 6 && d <= 9) return "마이애미";
+  if (m === 6 && d >= 10 && d <= 14) return "LA";
+  return null;
+}
+
+function formatTimeInTz(tz: string): string {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date());
+}
+
 const ITINERARY_SECTIONS: { key: ItinerarySection; emoji: string; label: string }[] = [
   { key: "schedule", emoji: "📅", label: "일정" },
   { key: "checklist", emoji: "✅", label: "준비물" },
@@ -208,26 +289,259 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
   const [section, setSection] = useState<ItinerarySection>("schedule");
   const [activeCityIndex, setActiveCityIndex] = useState(0);
   const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [hideChecked, setHideChecked] = useState(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("wedding-checklist");
-    if (saved) setCheckedItems(JSON.parse(saved));
+  // ─── Checklist (DB-backed) ───────────────────────────
+  const [checklistRows, setChecklistRows] = useState<ChecklistRow[]>([]);
+  const [addingToCategory, setAddingToCategory] = useState<string | null>(null);
+  const [newItemName, setNewItemName] = useState("");
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryIcon, setNewCategoryIcon] = useState("📌");
+
+  const reloadChecklist = useCallback(async () => {
+    if (supabaseReady) {
+      let rows = await fetchChecklist();
+      // Seed with defaults if table is empty
+      if (rows.length === 0) {
+        const seed: Omit<ChecklistRow, "id" | "created_at" | "updated_at">[] = [];
+        checklist.forEach((cat, catIdx) => {
+          cat.items.forEach((item, itemIdx) => {
+            seed.push({
+              category: cat.title,
+              category_icon: cat.icon,
+              category_order: catIdx,
+              name: item.name,
+              note: item.note,
+              checked: false,
+              position: itemIdx,
+            });
+          });
+        });
+        await insertChecklistItems(seed);
+        rows = await fetchChecklist();
+      }
+      setChecklistRows(rows);
+    } else {
+      // localStorage fallback: build from static + saved check state
+      const saved = localStorage.getItem("wedding-checklist");
+      const checks: Record<string, boolean> = saved ? JSON.parse(saved) : {};
+      const rows: ChecklistRow[] = [];
+      checklist.forEach((cat, catIdx) => {
+        cat.items.forEach((item, itemIdx) => {
+          rows.push({
+            id: `${cat.title}-${itemIdx}`,
+            category: cat.title,
+            category_icon: cat.icon,
+            category_order: catIdx,
+            name: item.name,
+            note: item.note,
+            checked: !!checks[`${cat.title}-${itemIdx}`],
+            position: itemIdx,
+          });
+        });
+      });
+      setChecklistRows(rows);
+    }
   }, []);
 
-  const toggleCheck = (key: string) => {
-    setCheckedItems((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      localStorage.setItem("wedding-checklist", JSON.stringify(next));
-      return next;
-    });
+  useEffect(() => {
+    void reloadChecklist();
+  }, [reloadChecklist]);
+
+  useEffect(() => {
+    const client = supabase;
+    if (!supabaseReady || !client) return;
+    const channel = client
+      .channel("honeymoon-checklist")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "honeymoon_checklist" },
+        () => { void reloadChecklist(); }
+      )
+      .subscribe();
+    return () => { client.removeChannel(channel); };
+  }, [reloadChecklist]);
+
+  const toggleCheck = (row: ChecklistRow) => {
+    const next = { ...row, checked: !row.checked };
+    setChecklistRows((prev) => prev.map((r) => (r.id === row.id ? next : r)));
+    if (supabaseReady) {
+      void upsertChecklistItem(next);
+    } else {
+      const saved = localStorage.getItem("wedding-checklist");
+      const checks: Record<string, boolean> = saved ? JSON.parse(saved) : {};
+      checks[row.id] = next.checked;
+      localStorage.setItem("wedding-checklist", JSON.stringify(checks));
+    }
+  };
+
+  const addChecklistItem = async (category: string, categoryIcon: string, categoryOrder: number, name: string) => {
+    if (!name.trim()) return;
+    const maxPos = Math.max(0, ...checklistRows.filter((r) => r.category === category).map((r) => r.position));
+    if (supabaseReady) {
+      await insertChecklistItems([{
+        category,
+        category_icon: categoryIcon,
+        category_order: categoryOrder,
+        name: name.trim(),
+        note: "",
+        checked: false,
+        position: maxPos + 1,
+      }]);
+      await reloadChecklist();
+    } else {
+      // localStorage doesn't easily support adds; just append locally
+      const newRow: ChecklistRow = {
+        id: `${category}-${Date.now()}`,
+        category,
+        category_icon: categoryIcon,
+        category_order: categoryOrder,
+        name: name.trim(),
+        note: "",
+        checked: false,
+        position: maxPos + 1,
+      };
+      setChecklistRows((prev) => [...prev, newRow]);
+    }
+    setAddingToCategory(null);
+    setNewItemName("");
+  };
+
+  const addChecklistCategory = async (icon: string, title: string) => {
+    if (!title.trim()) return;
+    const maxOrder = Math.max(0, ...checklistRows.map((r) => r.category_order));
+    if (supabaseReady) {
+      await insertChecklistItems([{
+        category: title.trim(),
+        category_icon: icon || "📌",
+        category_order: maxOrder + 1,
+        name: "(여기에 항목을 추가하세요)",
+        note: "",
+        checked: true,
+        position: 0,
+      }]);
+      await reloadChecklist();
+    }
+    setAddingCategory(false);
+    setNewCategoryName("");
+    setNewCategoryIcon("📌");
+  };
+
+  const removeChecklistItem = async (row: ChecklistRow) => {
+    if (supabaseReady) {
+      await deleteChecklistItem(row.id);
+      await reloadChecklist();
+    } else {
+      setChecklistRows((prev) => prev.filter((r) => r.id !== row.id));
+    }
   };
 
   const [exchangeInput, setExchangeInput] = useState("");
   const [exchangeDir, setExchangeDir] = useState<"usd2krw" | "krw2usd">("usd2krw");
   const [spending, setSpending] = useState<Record<number, number>>({});
   const [editingSpend, setEditingSpend] = useState<number | null>(null);
+
+  // ─── Daily Expenses (DB-backed) ──────────────────────
+  const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
+  const [expAmount, setExpAmount] = useState("");
+  const [expCurrency, setExpCurrency] = useState<"USD" | "KRW">("USD");
+  const [expCategory, setExpCategory] = useState("🍽️ 식비");
+  const [expMemo, setExpMemo] = useState("");
+  const [expDate, setExpDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
+  const [showAllExpenses, setShowAllExpenses] = useState(false);
+
+  const reloadExpenses = useCallback(async () => {
+    if (supabaseReady) {
+      const rows = await fetchExpenses();
+      setExpenses(rows);
+    } else {
+      const saved = localStorage.getItem("wedding-expenses");
+      if (saved) setExpenses(JSON.parse(saved));
+    }
+  }, []);
+
+  useEffect(() => { void reloadExpenses(); }, [reloadExpenses]);
+
+  useEffect(() => {
+    const client = supabase;
+    if (!supabaseReady || !client) return;
+    const channel = client
+      .channel("honeymoon-expenses")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "honeymoon_expenses" },
+        () => { void reloadExpenses(); }
+      )
+      .subscribe();
+    return () => { client.removeChannel(channel); };
+  }, [reloadExpenses]);
+
+  const EXPENSE_CATEGORIES = ["🍽️ 식비", "🚖 교통", "🛍️ 쇼핑", "🎟️ 관광", "🏨 숙박", "💵 기타"];
+
+  const addExpense = async () => {
+    const amount = parseFloat(expAmount);
+    if (!amount || isNaN(amount) || amount <= 0) return;
+    const rate = parseInt(budget.exchangeRate.replace(/,/g, ""));
+    const amountUsd = expCurrency === "USD" ? amount : amount / rate;
+    const amountKrw = expCurrency === "KRW" ? Math.round(amount) : Math.round(amount * rate);
+    if (supabaseReady) {
+      await insertExpense({
+        spent_at: expDate,
+        category: expCategory,
+        memo: expMemo,
+        amount_usd: Number(amountUsd.toFixed(2)),
+        amount_krw: amountKrw,
+      });
+      await reloadExpenses();
+    } else {
+      const newRow: ExpenseRow = {
+        id: crypto.randomUUID(),
+        spent_at: expDate,
+        category: expCategory,
+        memo: expMemo,
+        amount_usd: Number(amountUsd.toFixed(2)),
+        amount_krw: amountKrw,
+        created_at: new Date().toISOString(),
+      };
+      const next = [newRow, ...expenses];
+      setExpenses(next);
+      localStorage.setItem("wedding-expenses", JSON.stringify(next));
+    }
+    setExpAmount("");
+    setExpMemo("");
+  };
+
+  const removeExpense = async (id: string) => {
+    if (supabaseReady) {
+      await deleteExpense(id);
+      await reloadExpenses();
+    } else {
+      const next = expenses.filter((e) => e.id !== id);
+      setExpenses(next);
+      localStorage.setItem("wedding-expenses", JSON.stringify(next));
+    }
+  };
+
+  const todayDateStrIso = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+  const todayExpenses = expenses.filter((e) => e.spent_at === todayDateStrIso);
+  const todayTotalKrw = todayExpenses.reduce((s, e) => s + e.amount_krw, 0);
+  const todayTotalUsd = todayExpenses.reduce((s, e) => s + Number(e.amount_usd), 0);
+  const allExpensesTotalKrw = expenses.reduce((s, e) => s + e.amount_krw, 0);
+
+  // Group expenses by date for display
+  const expensesByDate = expenses.reduce<Record<string, ExpenseRow[]>>((acc, e) => {
+    if (!acc[e.spent_at]) acc[e.spent_at] = [];
+    acc[e.spent_at].push(e);
+    return acc;
+  }, {});
+  const expenseDatesSorted = Object.keys(expensesByDate).sort((a, b) => b.localeCompare(a));
 
   useEffect(() => {
     const saved = localStorage.getItem("wedding-spending");
@@ -255,6 +569,32 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
   });
 
   const city = cities[activeCityIndex];
+
+  // ─── Weather (Open-Meteo) ───────────────────────────
+  const [weatherByCity, setWeatherByCity] = useState<Record<string, DailyForecast[]>>({});
+  useEffect(() => {
+    const geo = CITY_GEO[city.name];
+    if (!geo) return;
+    if (weatherByCity[city.name]?.length > 0) return;
+    let cancelled = false;
+    fetchWeather(geo.lat, geo.lon, geo.tz).then((days) => {
+      if (!cancelled) setWeatherByCity((prev) => ({ ...prev, [city.name]: days }));
+    });
+    return () => { cancelled = true; };
+  }, [city.name, weatherByCity]);
+  const cityWeather = weatherByCity[city.name] ?? [];
+
+  // ─── Timezone clock (Korea + current trip city) ────
+  const [clockTick, setClockTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setClockTick((n) => n + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+  void clockTick;
+  const tripCity = getCurrentTripCity();
+  const tripCityTz = tripCity ? CITY_GEO[tripCity]?.tz : null;
+  const koreaTime = formatTimeInTz(KOREA_TZ);
+  const localTime = tripCityTz ? formatTimeInTz(tripCityTz) : null;
 
   const toggleDay = (dayKey: string) => {
     setExpandedDays((prev) => ({ ...prev, [dayKey]: !prev[dayKey] }));
@@ -297,7 +637,19 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
             </svg>
           </button>
           <h1 className="text-lg font-bold text-gray-900">신혼여행</h1>
-          <span className={`ml-auto text-xs px-2.5 py-1 rounded-full font-semibold ${dDay > 0 ? "bg-teal-100 text-teal-700" : dDay === 0 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"}`}>
+          {localTime && tripCity && (
+            <div className="ml-auto flex items-center gap-1.5 text-[11px]">
+              <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full">
+                <span className="text-gray-400">🇰🇷</span>
+                <span className="font-mono font-semibold text-gray-700">{koreaTime}</span>
+              </span>
+              <span className="flex items-center gap-1 bg-teal-50 px-2 py-1 rounded-full">
+                <span className="text-teal-400">📍</span>
+                <span className="font-mono font-semibold text-teal-700">{localTime}</span>
+              </span>
+            </div>
+          )}
+          <span className={`${localTime ? "" : "ml-auto"} text-xs px-2.5 py-1 rounded-full font-semibold ${dDay > 0 ? "bg-teal-100 text-teal-700" : dDay === 0 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-500"}`}>
             {dDay > 0 ? `D-${dDay}` : dDay === 0 ? "D-Day!" : `여행 ${Math.abs(dDay)}일차`}
           </span>
         </div>
@@ -413,6 +765,32 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
               </div>
             </div>
 
+            {/* Weather forecast (7-day) */}
+            {cityWeather.length > 0 && (
+              <div className="bg-white rounded-xl border border-blue-200 p-3 mb-4">
+                <p className="text-xs font-semibold text-blue-700 mb-2">🌤 {city.name} 7일 예보</p>
+                <div className="grid grid-cols-7 gap-1 text-center">
+                  {cityWeather.map((d) => {
+                    const date = new Date(d.date);
+                    const weekday = ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
+                    const dayNum = date.getDate();
+                    return (
+                      <div key={d.date} className="flex flex-col items-center gap-0.5">
+                        <span className="text-[10px] text-gray-400">{weekday}</span>
+                        <span className="text-[10px] text-gray-600">{dayNum}일</span>
+                        <span className="text-lg leading-none my-0.5">{weatherCodeToEmoji(d.code)}</span>
+                        <span className="text-[10px] font-semibold text-gray-800">{d.tMax}°</span>
+                        <span className="text-[10px] text-gray-400">{d.tMin}°</span>
+                        {d.precipMax > 30 && (
+                          <span className="text-[9px] text-blue-500">💧{d.precipMax}%</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Day Schedules */}
             <div className="space-y-3">
               {city.days.map((day) => {
@@ -491,68 +869,177 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
       {/* ───── CHECKLIST SECTION ───── */}
       {section === "checklist" && (
         <main className="max-w-2xl mx-auto px-4 py-4 pb-12">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs text-gray-500">
-              {Object.values(checkedItems).filter(Boolean).length} / {checklist.reduce((s, c) => s + c.items.length, 0)} 완료
-            </span>
-            <button
-              onClick={() => setHideChecked(!hideChecked)}
-              className={`text-xs px-3 py-1 rounded-full transition-colors ${hideChecked ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-500"}`}
-            >
-              {hideChecked ? "체크한 항목 숨김" : "체크한 항목 숨기기"}
-            </button>
-          </div>
-          <div className="space-y-4">
-            {checklist.map((cat) => {
-              const visibleItems = hideChecked
-                ? cat.items.filter((_, idx) => !checkedItems[`${cat.title}-${idx}`])
-                : cat.items;
-              const checkedCount = cat.items.filter((_, idx) => checkedItems[`${cat.title}-${idx}`]).length;
-              if (hideChecked && visibleItems.length === 0) return null;
-              return (
-                <div key={cat.title} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  <div className="px-4 py-3 bg-teal-50 border-b border-teal-100">
-                    <h3 className="text-sm font-bold text-teal-800">
-                      <span className="mr-1.5">{cat.icon}</span>{cat.title}
-                      <span className="ml-2 text-xs font-normal text-teal-600">({checkedCount}/{cat.items.length})</span>
-                    </h3>
-                  </div>
-                  <div>
-                    {visibleItems.map((item) => {
-                      const origIdx = cat.items.indexOf(item);
-                      const key = `${cat.title}-${origIdx}`;
-                      const checked = !!checkedItems[key];
-                      return (
-                        <button
-                          key={origIdx}
-                          onClick={() => toggleCheck(key)}
-                          className={`w-full px-4 py-2.5 flex items-center gap-3 text-sm text-left transition-colors ${
-                            checked ? "bg-teal-50/50" : origIdx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                          } border-b border-gray-50 last:border-b-0`}
-                        >
-                          <span className={`shrink-0 ${checked ? "text-teal-500" : "text-gray-300"}`}>
-                            {checked ? (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            ) : (
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <rect x="3" y="3" width="18" height="18" rx="3" />
-                              </svg>
-                            )}
-                          </span>
-                          <span className={`flex-1 ${checked ? "line-through text-gray-400" : "text-gray-800"}`}>{item.name}</span>
-                          {item.note && (
-                            <span className="text-xs text-gray-400 shrink-0 max-w-[140px] text-right">{item.note}</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+          {(() => {
+            const grouped = checklistRows.reduce<Record<string, ChecklistRow[]>>((acc, row) => {
+              if (!acc[row.category]) acc[row.category] = [];
+              acc[row.category].push(row);
+              return acc;
+            }, {});
+            const categories = Object.entries(grouped)
+              .map(([title, rows]) => ({
+                title,
+                icon: rows[0]?.category_icon ?? "📌",
+                order: rows[0]?.category_order ?? 999,
+                rows,
+              }))
+              .sort((a, b) => a.order - b.order);
+            const totalCount = checklistRows.length;
+            const checkedCount = checklistRows.filter((r) => r.checked).length;
+            return (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs text-gray-500">
+                    {checkedCount} / {totalCount} 완료
+                  </span>
+                  <button
+                    onClick={() => setHideChecked(!hideChecked)}
+                    className={`text-xs px-3 py-1 rounded-full transition-colors ${hideChecked ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-500"}`}
+                  >
+                    {hideChecked ? "체크한 항목 숨김 ON" : "체크한 항목 숨기기"}
+                  </button>
                 </div>
-              );
-            })}
-          </div>
+                <div className="space-y-4">
+                  {categories.map((cat) => {
+                    const visibleRows = hideChecked ? cat.rows.filter((r) => !r.checked) : cat.rows;
+                    const catChecked = cat.rows.filter((r) => r.checked).length;
+                    if (hideChecked && visibleRows.length === 0) return null;
+                    return (
+                      <div key={cat.title} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="px-4 py-3 bg-teal-50 border-b border-teal-100 flex items-center justify-between">
+                          <h3 className="text-sm font-bold text-teal-800">
+                            <span className="mr-1.5">{cat.icon}</span>{cat.title}
+                            <span className="ml-2 text-xs font-normal text-teal-600">({catChecked}/{cat.rows.length})</span>
+                          </h3>
+                          <button
+                            onClick={() => { setAddingToCategory(cat.title); setNewItemName(""); }}
+                            className="text-xs text-teal-600 hover:text-teal-800 font-medium"
+                          >
+                            + 추가
+                          </button>
+                        </div>
+                        <div>
+                          {visibleRows.map((row, idx) => (
+                            <div
+                              key={row.id}
+                              className={`px-4 py-2.5 flex items-center gap-3 text-sm transition-colors ${
+                                row.checked ? "bg-teal-50/50" : idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                              } border-b border-gray-50 last:border-b-0`}
+                            >
+                              <button
+                                onClick={() => toggleCheck(row)}
+                                className={`shrink-0 ${row.checked ? "text-teal-500" : "text-gray-300"}`}
+                              >
+                                {row.checked ? (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <rect x="3" y="3" width="18" height="18" rx="3" />
+                                  </svg>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => toggleCheck(row)}
+                                className={`flex-1 text-left ${row.checked ? "line-through text-gray-400" : "text-gray-800"}`}
+                              >
+                                {row.name}
+                              </button>
+                              {row.note && (
+                                <span className="text-xs text-gray-400 shrink-0 max-w-[120px] text-right">{row.note}</span>
+                              )}
+                              {supabaseReady && (
+                                <button
+                                  onClick={() => removeChecklistItem(row)}
+                                  className="shrink-0 text-gray-300 hover:text-red-500 p-1"
+                                  title="삭제"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          {addingToCategory === cat.title && (
+                            <div className="px-4 py-2.5 bg-teal-50/30 flex items-center gap-2">
+                              <input
+                                autoFocus
+                                value={newItemName}
+                                onChange={(e) => setNewItemName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") addChecklistItem(cat.title, cat.icon, cat.order, newItemName);
+                                  if (e.key === "Escape") { setAddingToCategory(null); setNewItemName(""); }
+                                }}
+                                placeholder="새 항목 이름"
+                                className="flex-1 px-3 py-1.5 text-sm bg-white border border-teal-200 rounded outline-none focus:border-teal-500"
+                              />
+                              <button
+                                onClick={() => addChecklistItem(cat.title, cat.icon, cat.order, newItemName)}
+                                className="text-xs px-3 py-1.5 bg-teal-500 text-white rounded hover:bg-teal-600"
+                              >
+                                추가
+                              </button>
+                              <button
+                                onClick={() => { setAddingToCategory(null); setNewItemName(""); }}
+                                className="text-xs px-2 py-1.5 text-gray-500"
+                              >
+                                취소
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {supabaseReady && (
+                    addingCategory ? (
+                      <div className="bg-white rounded-xl border-2 border-dashed border-teal-300 p-4 flex items-center gap-2">
+                        <input
+                          value={newCategoryIcon}
+                          onChange={(e) => setNewCategoryIcon(e.target.value)}
+                          maxLength={2}
+                          className="w-12 px-2 py-1.5 text-sm text-center border border-gray-200 rounded outline-none focus:border-teal-500"
+                          placeholder="📌"
+                        />
+                        <input
+                          autoFocus
+                          value={newCategoryName}
+                          onChange={(e) => setNewCategoryName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") addChecklistCategory(newCategoryIcon, newCategoryName);
+                            if (e.key === "Escape") { setAddingCategory(false); setNewCategoryName(""); }
+                          }}
+                          placeholder="새 카테고리 이름"
+                          className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded outline-none focus:border-teal-500"
+                        />
+                        <button
+                          onClick={() => addChecklistCategory(newCategoryIcon, newCategoryName)}
+                          className="text-xs px-3 py-1.5 bg-teal-500 text-white rounded hover:bg-teal-600"
+                        >
+                          추가
+                        </button>
+                        <button
+                          onClick={() => { setAddingCategory(false); setNewCategoryName(""); }}
+                          className="text-xs px-2 py-1.5 text-gray-500"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setAddingCategory(true)}
+                        className="w-full py-3 text-sm text-teal-600 hover:text-teal-800 border-2 border-dashed border-teal-200 hover:border-teal-400 rounded-xl transition-colors"
+                      >
+                        + 카테고리 추가
+                      </button>
+                    )
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </main>
       )}
 
@@ -668,7 +1155,7 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
           {/* Total Card */}
           {(() => {
             const totalBudgetKrw = parseInt(budget.total.krw.replace(/[^0-9]/g, ""));
-            const totalSpent = Object.values(spending).reduce((s, v) => s + v, 0);
+            const totalSpent = allExpensesTotalKrw + Object.values(spending).reduce((s, v) => s + v, 0);
             const remaining = totalBudgetKrw - totalSpent;
             const pct = totalBudgetKrw > 0 ? Math.min(100, Math.round((totalSpent / totalBudgetKrw) * 100)) : 0;
             return (
@@ -691,6 +1178,153 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
               </div>
             );
           })()}
+
+          {/* Today's Spending Card */}
+          <div className="bg-white rounded-xl border-2 border-amber-300 p-4 mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-bold text-amber-700">📌 오늘 지출</p>
+              <span className="text-xs text-gray-400">{todayExpenses.length}건</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">₩{todayTotalKrw.toLocaleString("ko-KR")}</p>
+            <p className="text-sm text-gray-500">${todayTotalUsd.toFixed(2)}</p>
+            {todayExpenses.length > 0 && (
+              <div className="mt-3 space-y-1.5 border-t border-gray-100 pt-3">
+                {todayExpenses.map((e) => (
+                  <div key={e.id} className="flex items-center gap-2 text-sm">
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 shrink-0">{e.category}</span>
+                    <span className="flex-1 text-gray-700 truncate">{e.memo || "-"}</span>
+                    <span className="text-gray-900 font-medium shrink-0">₩{e.amount_krw.toLocaleString("ko-KR")}</span>
+                    <button
+                      onClick={() => removeExpense(e.id)}
+                      className="text-gray-300 hover:text-red-500 shrink-0"
+                      title="삭제"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Add Expense Form */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+            <p className="text-xs font-semibold text-gray-500 mb-3">+ 지출 추가</p>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <input
+                type="date"
+                value={expDate}
+                onChange={(e) => setExpDate(e.target.value)}
+                className="col-span-3 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-teal-400"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-1.5 mb-2">
+              {EXPENSE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setExpCategory(cat)}
+                  className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    expCategory === cat ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={expMemo}
+              onChange={(e) => setExpMemo(e.target.value)}
+              placeholder="어디서? 무엇? (예: Joe's 스테이크)"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-teal-400 mb-2"
+            />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={expAmount}
+                onChange={(e) => setExpAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+                onKeyDown={(e) => { if (e.key === "Enter") addExpense(); }}
+                placeholder="금액"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-right focus:outline-none focus:border-teal-400"
+              />
+              <div className="flex bg-gray-100 rounded-lg p-0.5 shrink-0">
+                <button
+                  onClick={() => setExpCurrency("USD")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded ${expCurrency === "USD" ? "bg-white text-teal-700 shadow-sm" : "text-gray-500"}`}
+                >
+                  USD
+                </button>
+                <button
+                  onClick={() => setExpCurrency("KRW")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded ${expCurrency === "KRW" ? "bg-white text-teal-700 shadow-sm" : "text-gray-500"}`}
+                >
+                  KRW
+                </button>
+              </div>
+              <button
+                onClick={addExpense}
+                className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors shrink-0"
+              >
+                추가
+              </button>
+            </div>
+            {expAmount && !isNaN(parseFloat(expAmount)) && (
+              <p className="text-xs text-gray-400 mt-2 text-right">
+                {expCurrency === "USD"
+                  ? `≈ ₩${Math.round(parseFloat(expAmount) * parseInt(budget.exchangeRate.replace(/,/g, ""))).toLocaleString("ko-KR")}`
+                  : `≈ $${(parseFloat(expAmount) / parseInt(budget.exchangeRate.replace(/,/g, ""))).toFixed(2)}`}
+              </p>
+            )}
+          </div>
+
+          {/* Past Expenses History */}
+          {expenseDatesSorted.filter((d) => d !== todayDateStrIso).length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-gray-500">📅 지난 지출</p>
+                <button
+                  onClick={() => setShowAllExpenses(!showAllExpenses)}
+                  className="text-xs text-teal-600 hover:text-teal-800"
+                >
+                  {showAllExpenses ? "접기" : "펼치기"}
+                </button>
+              </div>
+              {showAllExpenses && (
+                <div className="space-y-3">
+                  {expenseDatesSorted.filter((d) => d !== todayDateStrIso).map((date) => {
+                    const dayExps = expensesByDate[date];
+                    const dayTotal = dayExps.reduce((s, e) => s + e.amount_krw, 0);
+                    return (
+                      <div key={date} className="border-t border-gray-100 pt-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-semibold text-gray-600">{date}</span>
+                          <span className="text-xs font-bold text-gray-700">₩{dayTotal.toLocaleString("ko-KR")}</span>
+                        </div>
+                        <div className="space-y-1">
+                          {dayExps.map((e) => (
+                            <div key={e.id} className="flex items-center gap-2 text-xs">
+                              <span className="px-1 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">{e.category}</span>
+                              <span className="flex-1 text-gray-700 truncate">{e.memo || "-"}</span>
+                              <span className="text-gray-900 shrink-0">₩{e.amount_krw.toLocaleString("ko-KR")}</span>
+                              <button
+                                onClick={() => removeExpense(e.id)}
+                                className="text-gray-300 hover:text-red-500 shrink-0"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Currency Calculator */}
           <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">

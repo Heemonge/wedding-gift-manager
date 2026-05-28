@@ -61,3 +61,58 @@ create policy "public all on wedding_config"
 
 alter publication supabase_realtime add table wedding_gifts;
 alter publication supabase_realtime add table wedding_config;
+
+-- ============================================================
+-- 신혼여행 체크리스트 (사용자 편집 가능)
+-- ============================================================
+
+create table if not exists honeymoon_checklist (
+  id uuid primary key default gen_random_uuid(),
+  category text not null,
+  category_icon text not null default '',
+  category_order int not null default 0,
+  name text not null,
+  note text not null default '',
+  checked boolean not null default false,
+  position int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists honeymoon_checklist_order_idx
+  on honeymoon_checklist(category_order, position);
+
+alter table honeymoon_checklist enable row level security;
+
+drop policy if exists "public all on honeymoon_checklist" on honeymoon_checklist;
+create policy "public all on honeymoon_checklist"
+  on honeymoon_checklist for all
+  using (true) with check (true);
+
+alter publication supabase_realtime add table honeymoon_checklist;
+
+-- ============================================================
+-- 신혼여행 일일 지출
+-- ============================================================
+
+create table if not exists honeymoon_expenses (
+  id uuid primary key default gen_random_uuid(),
+  spent_at date not null default current_date,
+  category text not null default '',
+  memo text not null default '',
+  amount_usd numeric(10, 2) not null default 0,
+  amount_krw int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists honeymoon_expenses_date_idx
+  on honeymoon_expenses(spent_at desc, created_at desc);
+
+alter table honeymoon_expenses enable row level security;
+
+drop policy if exists "public all on honeymoon_expenses" on honeymoon_expenses;
+create policy "public all on honeymoon_expenses"
+  on honeymoon_expenses for all
+  using (true) with check (true);
+
+alter publication supabase_realtime add table honeymoon_expenses;

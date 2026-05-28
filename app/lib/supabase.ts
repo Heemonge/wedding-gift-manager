@@ -97,3 +97,91 @@ export async function saveConfigRow(row: Omit<ConfigRow, "id">): Promise<void> {
   });
   if (error) console.error("saveConfigRow", error);
 }
+
+// ─── 체크리스트 ──────────────────────────────────────
+
+export interface ChecklistRow {
+  id: string;
+  category: string;
+  category_icon: string;
+  category_order: number;
+  name: string;
+  note: string;
+  checked: boolean;
+  position: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export async function fetchChecklist(): Promise<ChecklistRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("honeymoon_checklist")
+    .select("*")
+    .order("category_order", { ascending: true })
+    .order("position", { ascending: true });
+  if (error) {
+    console.error("fetchChecklist", error);
+    return [];
+  }
+  return (data as ChecklistRow[]) ?? [];
+}
+
+export async function insertChecklistItems(rows: Omit<ChecklistRow, "id" | "created_at" | "updated_at">[]): Promise<void> {
+  if (!supabase || rows.length === 0) return;
+  const { error } = await supabase.from("honeymoon_checklist").insert(rows);
+  if (error) console.error("insertChecklistItems", error);
+}
+
+export async function upsertChecklistItem(row: ChecklistRow): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("honeymoon_checklist").upsert({
+    ...row,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) console.error("upsertChecklistItem", error);
+}
+
+export async function deleteChecklistItem(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("honeymoon_checklist").delete().eq("id", id);
+  if (error) console.error("deleteChecklistItem", error);
+}
+
+// ─── 일일 지출 ───────────────────────────────────────
+
+export interface ExpenseRow {
+  id: string;
+  spent_at: string;
+  category: string;
+  memo: string;
+  amount_usd: number;
+  amount_krw: number;
+  created_at?: string;
+}
+
+export async function fetchExpenses(): Promise<ExpenseRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("honeymoon_expenses")
+    .select("*")
+    .order("spent_at", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("fetchExpenses", error);
+    return [];
+  }
+  return (data as ExpenseRow[]) ?? [];
+}
+
+export async function insertExpense(row: Omit<ExpenseRow, "id" | "created_at">): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("honeymoon_expenses").insert(row);
+  if (error) console.error("insertExpense", error);
+}
+
+export async function deleteExpense(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("honeymoon_expenses").delete().eq("id", id);
+  if (error) console.error("deleteExpense", error);
+}
