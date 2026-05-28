@@ -12,6 +12,17 @@ import {
   type QnA,
   type TableRow,
 } from "./itinerary-data";
+import {
+  supabase,
+  supabaseReady,
+  fetchGiftRows,
+  fetchAllGiftRows,
+  upsertGiftRow,
+  deleteGiftRow,
+  fetchConfigRow,
+  saveConfigRow,
+  type GiftRow,
+} from "./lib/supabase";
 
 const DEFAULT_TICKET_PRICE = 65000;
 const DEFAULT_TOTAL_TICKETS = 200;
@@ -24,15 +35,50 @@ interface TicketConfig {
   guaranteedGuests: number;
 }
 
-function loadConfig(): TicketConfig {
-  if (typeof window === "undefined") return { ticketPrice: DEFAULT_TICKET_PRICE, groomTickets: DEFAULT_TOTAL_TICKETS, brideTickets: DEFAULT_TOTAL_TICKETS, guaranteedGuests: DEFAULT_GUARANTEED_GUESTS };
+const DEFAULT_CONFIG: TicketConfig = {
+  ticketPrice: DEFAULT_TICKET_PRICE,
+  groomTickets: DEFAULT_TOTAL_TICKETS,
+  brideTickets: DEFAULT_TOTAL_TICKETS,
+  guaranteedGuests: DEFAULT_GUARANTEED_GUESTS,
+};
+
+function loadConfigLocal(): TicketConfig {
+  if (typeof window === "undefined") return DEFAULT_CONFIG;
   const saved = localStorage.getItem("wedding-gift-config");
   if (saved) return JSON.parse(saved);
-  return { ticketPrice: DEFAULT_TICKET_PRICE, groomTickets: DEFAULT_TOTAL_TICKETS, brideTickets: DEFAULT_TOTAL_TICKETS, guaranteedGuests: DEFAULT_GUARANTEED_GUESTS };
+  return DEFAULT_CONFIG;
 }
 
-function saveConfig(config: TicketConfig) {
+function saveConfigLocal(config: TicketConfig) {
   localStorage.setItem("wedding-gift-config", JSON.stringify(config));
+}
+
+async function loadConfigAsync(): Promise<TicketConfig> {
+  if (supabaseReady) {
+    const row = await fetchConfigRow();
+    if (row) {
+      return {
+        ticketPrice: row.ticket_price,
+        groomTickets: row.groom_tickets,
+        brideTickets: row.bride_tickets,
+        guaranteedGuests: row.guaranteed_guests,
+      };
+    }
+  }
+  return loadConfigLocal();
+}
+
+async function persistConfig(config: TicketConfig) {
+  if (supabaseReady) {
+    await saveConfigRow({
+      ticket_price: config.ticketPrice,
+      groom_tickets: config.groomTickets,
+      bride_tickets: config.brideTickets,
+      guaranteed_guests: config.guaranteedGuests,
+    });
+    return;
+  }
+  saveConfigLocal(config);
 }
 
 const RELATIONS = ["부모님", "친척", "친구", "직장", "기타"] as const;
@@ -81,6 +127,59 @@ function loadEntriesFromStorage(side: Side): GiftEntry[] {
   const saved = localStorage.getItem(getStorageKey(side));
   if (saved) return JSON.parse(saved);
   return [];
+}
+
+function rowToEntry(row: GiftRow): GiftEntry {
+  return {
+    id: row.id,
+    name: row.name,
+    relation: (row.relation as Relation) ?? "",
+    people: row.people,
+    tickets: row.tickets,
+    amount: row.amount,
+    note: row.note,
+  };
+}
+
+function entryToRow(entry: GiftEntry, side: Side): GiftRow {
+  return {
+    id: entry.id,
+    side,
+    name: entry.name,
+    relation: entry.relation || "",
+    people: entry.people,
+    tickets: entry.tickets,
+    amount: entry.amount,
+    note: entry.note,
+    position: 0,
+  };
+}
+
+async function loadEntriesAsync(side: Side): Promise<GiftEntry[]> {
+  if (supabaseReady) {
+    const rows = await fetchGiftRows(side);
+    return rows.map(rowToEntry);
+  }
+  return loadEntriesFromStorage(side);
+}
+
+async function persistEntryUpsert(entry: GiftEntry, side: Side, allEntries: GiftEntry[]) {
+  if (!entry.name.trim()) return;
+  if (supabaseReady) {
+    await upsertGiftRow(entryToRow(entry, side));
+    return;
+  }
+  const toSave = allEntries.filter((e) => e.name.trim() !== "");
+  localStorage.setItem(getStorageKey(side), JSON.stringify(toSave));
+}
+
+async function persistEntryDelete(id: string, side: Side, remainingEntries: GiftEntry[], wasFilled: boolean) {
+  if (supabaseReady) {
+    if (wasFilled) await deleteGiftRow(id);
+    return;
+  }
+  const toSave = remainingEntries.filter((e) => e.name.trim() !== "");
+  localStorage.setItem(getStorageKey(side), JSON.stringify(toSave));
 }
 
 function calcSummary(entries: GiftEntry[], ticketPrice: number) {
@@ -768,6 +867,7 @@ export default function Home() {
   const [editingCell, setEditingCell] = useState<{ id: string; field: EditableField } | null>(null);
   const [config, setConfig] = useState<TicketConfig>({ ticketPrice: DEFAULT_TICKET_PRICE, groomTickets: DEFAULT_TOTAL_TICKETS, brideTickets: DEFAULT_TOTAL_TICKETS, guaranteedGuests: DEFAULT_GUARANTEED_GUESTS });
   const [showConfig, setShowConfig] = useState(false);
+  const [settlementData, setSettlementData] = useState<{ groom: GiftEntry[]; bride: GiftEntry[] } | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const captureRef = useRef<HTMLDivElement | null>(null);
 
@@ -781,47 +881,117 @@ export default function Home() {
   };
 
   useEffect(() => {
-    setConfig(loadConfig());
-    const savedSide = localStorage.getItem("wedding-gift-side") as Side | null;
-    if (savedSide === "groom" || savedSide === "bride") {
-      setSide(savedSide);
-      setPage(savedSide);
-    } else {
-      setPage("home");
-    }
-    setInitializing(false);
+    let cancelled = false;
+    (async () => {
+      const loaded = await loadConfigAsync();
+      if (cancelled) return;
+      setConfig(loaded);
+      const savedSide = localStorage.getItem("wedding-gift-side") as Side | null;
+      if (savedSide === "groom" || savedSide === "bride") {
+        setSide(savedSide);
+        setPage(savedSide);
+      } else {
+        setPage("home");
+      }
+      setInitializing(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Realtime subscription for config (shared across devices)
+  useEffect(() => {
+    const client = supabase;
+    if (!supabaseReady || !client) return;
+    const channel = client
+      .channel("wedding-config")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "wedding_config" },
+        async () => {
+          const fresh = await loadConfigAsync();
+          setConfig(fresh);
+        }
+      )
+      .subscribe();
+    return () => {
+      client.removeChannel(channel);
+    };
   }, []);
 
   const updateConfig = (partial: Partial<TicketConfig>) => {
     setConfig((prev) => {
       const next = { ...prev, ...partial };
-      saveConfig(next);
+      void persistConfig(next);
       return next;
     });
   };
 
   useEffect(() => {
     if (!side) return;
+    let cancelled = false;
     localStorage.setItem("wedding-gift-side", side);
-    const saved = localStorage.getItem(getStorageKey(side));
-    if (saved) {
-      const parsed: GiftEntry[] = JSON.parse(saved);
-      const hasEmpty = parsed.some((e) => !e.name.trim());
-      if (!hasEmpty) {
-        parsed.push(createEmptyEntry());
-      }
-      setEntries(parsed);
-    } else {
-      setEntries([createEmptyEntry()]);
-    }
-    setLoaded(true);
+    setLoaded(false);
+    (async () => {
+      const fromDb = await loadEntriesAsync(side);
+      if (cancelled) return;
+      const hasEmpty = fromDb.some((e) => !e.name.trim());
+      const next = hasEmpty ? fromDb : [...fromDb, createEmptyEntry()];
+      setEntries(next);
+      setLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [side]);
 
-  const saveToStorage = (newEntries: GiftEntry[]) => {
-    if (!side) return;
-    const toSave = newEntries.filter((e) => e.name.trim() !== "");
-    localStorage.setItem(getStorageKey(side), JSON.stringify(toSave));
-  };
+  // Realtime subscription for this side's gift entries
+  const editingCellRef = useRef(editingCell);
+  useEffect(() => {
+    editingCellRef.current = editingCell;
+  }, [editingCell]);
+
+  useEffect(() => {
+    const client = supabase;
+    if (!supabaseReady || !client || !side) return;
+    const channel = client
+      .channel(`wedding-gifts-${side}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "wedding_gifts",
+          filter: `side=eq.${side}`,
+        },
+        async () => {
+          const fresh = await loadEntriesAsync(side);
+          setEntries((prev) => {
+            const editingId = editingCellRef.current?.id;
+            const merged = fresh.map((row) => {
+              if (editingId && row.id === editingId) {
+                const local = prev.find((e) => e.id === editingId);
+                return local ?? row;
+              }
+              return row;
+            });
+            // Preserve trailing empty row from local state if it's not in DB
+            const dbIds = new Set(fresh.map((r) => r.id));
+            const trailing = prev.find((e) => !dbIds.has(e.id));
+            if (trailing) merged.push(trailing);
+            else if (!merged.some((e) => !e.name.trim())) {
+              merged.push(createEmptyEntry());
+            }
+            return merged;
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      client.removeChannel(channel);
+    };
+  }, [side]);
 
   useEffect(() => {
     if (editingCell && inputRef.current) {
@@ -831,6 +1001,8 @@ export default function Home() {
   }, [editingCell]);
 
   const updateEntry = (id: string, field: keyof GiftEntry, value: string | number) => {
+    if (!side) return;
+    const currentSide = side;
     setEntries((prev) => {
       const updated = prev.map((e) => (e.id === id ? { ...e, [field]: value } : e));
 
@@ -843,21 +1015,64 @@ export default function Home() {
           }
         }
       }
-      saveToStorage(updated);
+      const target = updated.find((e) => e.id === id);
+      if (target) void persistEntryUpsert(target, currentSide, updated);
       return updated;
     });
   };
 
   const deleteEntry = (id: string) => {
+    if (!side) return;
+    const currentSide = side;
     setEntries((prev) => {
+      const wasFilled = prev.find((e) => e.id === id)?.name.trim() !== "";
       const filtered = prev.filter((e) => e.id !== id);
       if (filtered.length === 0 || !filtered.some((e) => !e.name.trim())) {
         filtered.push(createEmptyEntry());
       }
-      saveToStorage(filtered);
+      void persistEntryDelete(id, currentSide, filtered, wasFilled);
       return filtered;
     });
   };
+
+  // Load + subscribe settlement data whenever the settlement page is open
+  useEffect(() => {
+    if (page !== "settlement") {
+      setSettlementData(null);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      if (supabaseReady) {
+        const rows = await fetchAllGiftRows();
+        if (cancelled) return;
+        const groom = rows.filter((r) => r.side === "groom").map(rowToEntry);
+        const bride = rows.filter((r) => r.side === "bride").map(rowToEntry);
+        setSettlementData({ groom, bride });
+      } else {
+        setSettlementData({
+          groom: loadEntriesFromStorage("groom"),
+          bride: loadEntriesFromStorage("bride"),
+        });
+      }
+    };
+    void load();
+
+    const client = supabase;
+    if (!supabaseReady || !client) return () => { cancelled = true; };
+    const channel = client
+      .channel("wedding-gifts-settlement")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "wedding_gifts" },
+        () => { void load(); }
+      )
+      .subscribe();
+    return () => {
+      cancelled = true;
+      client.removeChannel(channel);
+    };
+  }, [page]);
 
   const handleCellClick = (id: string, field: EditableField) => {
     setEditingCell({ id, field });
@@ -1055,8 +1270,15 @@ export default function Home() {
   }
 
   if (page === "settlement") {
-    const groomEntries = loadEntriesFromStorage("groom");
-    const brideEntries = loadEntriesFromStorage("bride");
+    if (!settlementData) {
+      return (
+        <div className="flex items-center justify-center h-screen">
+          <p className="text-gray-400">불러오는 중...</p>
+        </div>
+      );
+    }
+    const groomEntries = settlementData.groom;
+    const brideEntries = settlementData.bride;
     const groomSummary = calcSummary(groomEntries, config.ticketPrice);
     const brideSummary = calcSummary(brideEntries, config.ticketPrice);
 
