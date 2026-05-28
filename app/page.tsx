@@ -701,13 +701,40 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
   };
 
   // Group reservations by city
+  // ─── Reservation status override (localStorage) ─────
+  type ResStatus = "완료" | "미완료" | "주의";
+  const [resOverrides, setResOverrides] = useState<Record<string, ResStatus>>({});
+  useEffect(() => {
+    const saved = localStorage.getItem("wedding-reservation-status");
+    if (saved) setResOverrides(JSON.parse(saved));
+  }, []);
+  const resKey = (city: string, item: string) => `${city}::${item}`;
+  const getResStatus = (r: typeof reservations[number]): ResStatus => {
+    return resOverrides[resKey(r.city, r.item)] ?? r.status;
+  };
+  const toggleResStatus = (city: string, item: string, original: ResStatus) => {
+    setResOverrides((prev) => {
+      const key = resKey(city, item);
+      const current = prev[key] ?? original;
+      // 완료 → 원래 상태로 / 그 외 → 완료
+      const next: Record<string, ResStatus> = { ...prev };
+      if (current === "완료") {
+        delete next[key];
+      } else {
+        next[key] = "완료";
+      }
+      localStorage.setItem("wedding-reservation-status", JSON.stringify(next));
+      return next;
+    });
+  };
+
   const reservationsByCity = reservations.reduce<Record<string, typeof reservations>>((acc, r) => {
     if (!acc[r.city]) acc[r.city] = [];
     acc[r.city].push(r);
     return acc;
   }, {});
 
-  const statusBadge = (status: "완료" | "미완료" | "주의") => {
+  const statusBadge = (status: ResStatus) => {
     if (status === "완료") return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">완료</span>;
     if (status === "주의") return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">주의</span>;
     return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">미완료</span>;
@@ -1164,9 +1191,9 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
       {section === "reservations" && (
         <main className="max-w-2xl mx-auto px-4 py-4 pb-12">
           {/* Summary counts */}
-          <div className="flex gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
             {(["완료", "미완료", "주의"] as const).map((s) => {
-              const count = reservations.filter((r) => r.status === s).length;
+              const count = reservations.filter((r) => getResStatus(r) === s).length;
               return (
                 <span key={s} className={`text-xs px-2.5 py-1 rounded-full font-medium ${
                   s === "완료" ? "bg-green-100 text-green-700" :
@@ -1177,6 +1204,7 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
                 </span>
               );
             })}
+            <span className="text-[10px] text-gray-400 ml-auto">상태 배지 탭 → 완료/원래상태 전환</span>
           </div>
 
           <div className="space-y-4">
@@ -1207,9 +1235,13 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
                           </div>
                           {r.memo && <p className="text-xs text-gray-400 mt-1">{r.memo}</p>}
                         </div>
-                        <div className="shrink-0 mt-0.5">
-                          {statusBadge(r.status)}
-                        </div>
+                        <button
+                          onClick={() => toggleResStatus(r.city, r.item, r.status)}
+                          className="shrink-0 mt-0.5"
+                          title="탭하여 완료/원래 상태 전환"
+                        >
+                          {statusBadge(getResStatus(r))}
+                        </button>
                       </div>
                     </div>
                   ))}
