@@ -1537,14 +1537,30 @@ export default function Home() {
 
           <div className="flex gap-6 mb-8">
             <button
-              onClick={() => { setSide("groom"); setPage("groom"); }}
+              onClick={() => {
+                const pw = prompt("신랑측 비밀번호를 입력하세요");
+                if (pw === "0910") {
+                  setSide("groom");
+                  setPage("groom");
+                } else if (pw !== null) {
+                  alert("비밀번호가 틀렸습니다.");
+                }
+              }}
               className="w-44 h-44 bg-white border-2 border-blue-200 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-blue-500 hover:shadow-lg transition-all group"
             >
               <span className="text-5xl">🤵</span>
               <span className="text-lg font-semibold text-blue-700 group-hover:text-blue-800">신랑측</span>
             </button>
             <button
-              onClick={() => { setSide("bride"); setPage("bride"); }}
+              onClick={() => {
+                const pw = prompt("신부측 비밀번호를 입력하세요");
+                if (pw === "0925") {
+                  setSide("bride");
+                  setPage("bride");
+                } else if (pw !== null) {
+                  alert("비밀번호가 틀렸습니다.");
+                }
+              }}
               className="w-44 h-44 bg-white border-2 border-pink-200 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-pink-500 hover:shadow-lg transition-all group"
             >
               <span className="text-5xl">👰</span>
