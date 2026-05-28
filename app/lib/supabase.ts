@@ -141,7 +141,7 @@ export async function upsertChecklistItem(row: ChecklistRow): Promise<void> {
     ...row,
     updated_at: new Date().toISOString(),
   });
-  if (error) console.error("upsertChecklistItem", error);
+  if (error) console.error("upsertChecklistItem", error.message, error.details, error.hint, error.code);
 }
 
 export async function deleteChecklistItem(id: string): Promise<void> {
