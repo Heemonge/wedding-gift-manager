@@ -1229,6 +1229,32 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
             </div>
           )}
 
+          {/* Storage usage bar */}
+          {(() => {
+            const FREE_LIMIT = 1024 * 1024 * 1024; // 1 GB
+            const used = documents.reduce((s, d) => s + d.file_size, 0);
+            const pct = Math.min(100, (used / FREE_LIMIT) * 100);
+            const usedMb = used / (1024 * 1024);
+            const usedDisplay = usedMb < 1
+              ? `${(used / 1024).toFixed(0)} KB`
+              : `${usedMb.toFixed(2)} MB`;
+            const barColor = pct > 90 ? "bg-red-500" : pct > 70 ? "bg-yellow-500" : "bg-teal-500";
+            return (
+              <div className="bg-white rounded-xl border border-gray-200 p-3 mb-4">
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <span className="text-gray-500">📎 Supabase Storage</span>
+                  <span className="text-gray-700 font-medium">
+                    {usedDisplay} <span className="text-gray-400">/ 1 GB</span>
+                    <span className="text-gray-400 ml-1">({pct.toFixed(1)}%)</span>
+                  </span>
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.max(0.5, pct)}%` }} />
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Upload Form */}
           {supabaseReady && (
             <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
