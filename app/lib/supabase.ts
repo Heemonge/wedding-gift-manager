@@ -108,6 +108,8 @@ export interface ChecklistRow {
   name: string;
   note: string;
   checked: boolean;
+  checked_bride: boolean;
+  checked_groom: boolean;
   position: number;
   created_at?: string;
   updated_at?: string;

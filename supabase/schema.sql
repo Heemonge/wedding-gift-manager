@@ -81,10 +81,15 @@ create table if not exists honeymoon_checklist (
   name text not null,
   note text not null default '',
   checked boolean not null default false,
+  checked_bride boolean not null default false,
+  checked_groom boolean not null default false,
   position int not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table honeymoon_checklist add column if not exists checked_bride boolean not null default false;
+alter table honeymoon_checklist add column if not exists checked_groom boolean not null default false;
 
 create index if not exists honeymoon_checklist_order_idx
   on honeymoon_checklist(category_order, position);

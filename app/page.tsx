@@ -314,6 +314,8 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
               name: item.name,
               note: item.note,
               checked: false,
+              checked_bride: false,
+              checked_groom: false,
               position: itemIdx,
             });
           });
@@ -325,18 +327,21 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
     } else {
       // localStorage fallback: build from static + saved check state
       const saved = localStorage.getItem("wedding-checklist");
-      const checks: Record<string, boolean> = saved ? JSON.parse(saved) : {};
+      const checks: Record<string, { b?: boolean; g?: boolean }> = saved ? JSON.parse(saved) : {};
       const rows: ChecklistRow[] = [];
       checklist.forEach((cat, catIdx) => {
         cat.items.forEach((item, itemIdx) => {
+          const key = `${cat.title}-${itemIdx}`;
           rows.push({
-            id: `${cat.title}-${itemIdx}`,
+            id: key,
             category: cat.title,
             category_icon: cat.icon,
             category_order: catIdx,
             name: item.name,
             note: item.note,
-            checked: !!checks[`${cat.title}-${itemIdx}`],
+            checked: !!(checks[key]?.b && checks[key]?.g),
+            checked_bride: !!checks[key]?.b,
+            checked_groom: !!checks[key]?.g,
             position: itemIdx,
           });
         });
@@ -363,15 +368,20 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
     return () => { client.removeChannel(channel); };
   }, [reloadChecklist]);
 
-  const toggleCheck = (row: ChecklistRow) => {
-    const next = { ...row, checked: !row.checked };
+  const toggleCheck = (row: ChecklistRow, person: "bride" | "groom") => {
+    const next: ChecklistRow = {
+      ...row,
+      checked_bride: person === "bride" ? !row.checked_bride : row.checked_bride,
+      checked_groom: person === "groom" ? !row.checked_groom : row.checked_groom,
+    };
+    next.checked = next.checked_bride && next.checked_groom;
     setChecklistRows((prev) => prev.map((r) => (r.id === row.id ? next : r)));
     if (supabaseReady) {
       void upsertChecklistItem(next);
     } else {
       const saved = localStorage.getItem("wedding-checklist");
-      const checks: Record<string, boolean> = saved ? JSON.parse(saved) : {};
-      checks[row.id] = next.checked;
+      const checks: Record<string, { b?: boolean; g?: boolean }> = saved ? JSON.parse(saved) : {};
+      checks[row.id] = { b: next.checked_bride, g: next.checked_groom };
       localStorage.setItem("wedding-checklist", JSON.stringify(checks));
     }
   };
@@ -387,11 +397,12 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
         name: name.trim(),
         note: "",
         checked: false,
+        checked_bride: false,
+        checked_groom: false,
         position: maxPos + 1,
       }]);
       await reloadChecklist();
     } else {
-      // localStorage doesn't easily support adds; just append locally
       const newRow: ChecklistRow = {
         id: `${category}-${Date.now()}`,
         category,
@@ -400,6 +411,8 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
         name: name.trim(),
         note: "",
         checked: false,
+        checked_bride: false,
+        checked_groom: false,
         position: maxPos + 1,
       };
       setChecklistRows((prev) => [...prev, newRow]);
@@ -419,6 +432,8 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
         name: "(여기에 항목을 추가하세요)",
         note: "",
         checked: true,
+        checked_bride: true,
+        checked_groom: true,
         position: 0,
       }]);
       await reloadChecklist();
@@ -453,6 +468,18 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   });
   const [showAllExpenses, setShowAllExpenses] = useState(false);
+  const [cashBudget, setCashBudget] = useState(2000000); // 기본 200만원
+  const [editingCashBudget, setEditingCashBudget] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("wedding-cash-budget");
+    if (saved) setCashBudget(parseInt(saved));
+  }, []);
+
+  const updateCashBudget = (n: number) => {
+    setCashBudget(n);
+    localStorage.setItem("wedding-cash-budget", String(n));
+  };
 
   const reloadExpenses = useCallback(async () => {
     if (supabaseReady) {
@@ -884,83 +911,104 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
               }))
               .sort((a, b) => a.order - b.order);
             const totalCount = checklistRows.length;
-            const checkedCount = checklistRows.filter((r) => r.checked).length;
+            const brideCount = checklistRows.filter((r) => r.checked_bride).length;
+            const groomCount = checklistRows.filter((r) => r.checked_groom).length;
             return (
               <>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs text-gray-500">
-                    {checkedCount} / {totalCount} 완료
-                  </span>
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="px-2 py-1 rounded-full bg-pink-100 text-pink-700 font-medium">
+                      👰 {brideCount}/{totalCount}
+                    </span>
+                    <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
+                      🤵 {groomCount}/{totalCount}
+                    </span>
+                  </div>
                   <button
                     onClick={() => setHideChecked(!hideChecked)}
                     className={`text-xs px-3 py-1 rounded-full transition-colors ${hideChecked ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-500"}`}
                   >
-                    {hideChecked ? "체크한 항목 숨김 ON" : "체크한 항목 숨기기"}
+                    {hideChecked ? "양쪽 완료 숨김 ON" : "양쪽 완료 숨기기"}
                   </button>
                 </div>
                 <div className="space-y-4">
                   {categories.map((cat) => {
-                    const visibleRows = hideChecked ? cat.rows.filter((r) => !r.checked) : cat.rows;
-                    const catChecked = cat.rows.filter((r) => r.checked).length;
+                    const visibleRows = hideChecked ? cat.rows.filter((r) => !(r.checked_bride && r.checked_groom)) : cat.rows;
+                    const catBride = cat.rows.filter((r) => r.checked_bride).length;
+                    const catGroom = cat.rows.filter((r) => r.checked_groom).length;
                     if (hideChecked && visibleRows.length === 0) return null;
                     return (
                       <div key={cat.title} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                        <div className="px-4 py-3 bg-teal-50 border-b border-teal-100 flex items-center justify-between">
-                          <h3 className="text-sm font-bold text-teal-800">
-                            <span className="mr-1.5">{cat.icon}</span>{cat.title}
-                            <span className="ml-2 text-xs font-normal text-teal-600">({catChecked}/{cat.rows.length})</span>
+                        <div className="px-4 py-3 bg-teal-50 border-b border-teal-100 flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-bold text-teal-800 flex items-center gap-1 min-w-0">
+                            <span>{cat.icon}</span>
+                            <span className="truncate">{cat.title}</span>
                           </h3>
-                          <button
-                            onClick={() => { setAddingToCategory(cat.title); setNewItemName(""); }}
-                            className="text-xs text-teal-600 hover:text-teal-800 font-medium"
-                          >
-                            + 추가
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-pink-100 text-pink-700 font-medium">
+                              👰 {catBride}/{cat.rows.length}
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
+                              🤵 {catGroom}/{cat.rows.length}
+                            </span>
+                            <button
+                              onClick={() => { setAddingToCategory(cat.title); setNewItemName(""); }}
+                              className="text-xs text-teal-600 hover:text-teal-800 font-medium px-1"
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
                         <div>
-                          {visibleRows.map((row, idx) => (
-                            <div
-                              key={row.id}
-                              className={`px-4 py-2.5 flex items-center gap-3 text-sm transition-colors ${
-                                row.checked ? "bg-teal-50/50" : idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                              } border-b border-gray-50 last:border-b-0`}
-                            >
-                              <button
-                                onClick={() => toggleCheck(row)}
-                                className={`shrink-0 ${row.checked ? "text-teal-500" : "text-gray-300"}`}
+                          {visibleRows.map((row, idx) => {
+                            const bothChecked = row.checked_bride && row.checked_groom;
+                            return (
+                              <div
+                                key={row.id}
+                                className={`px-3 py-2.5 flex items-center gap-2 text-sm transition-colors ${
+                                  bothChecked ? "bg-teal-50/50" : idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                                } border-b border-gray-50 last:border-b-0`}
                               >
-                                {row.checked ? (
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                ) : (
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <rect x="3" y="3" width="18" height="18" rx="3" />
-                                  </svg>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    onClick={() => toggleCheck(row, "bride")}
+                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                      row.checked_bride ? "bg-pink-500 text-white" : "bg-gray-100 text-gray-300 hover:bg-pink-50"
+                                    }`}
+                                    title="신부"
+                                  >
+                                    <span className="text-xs">👰</span>
+                                  </button>
+                                  <button
+                                    onClick={() => toggleCheck(row, "groom")}
+                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                                      row.checked_groom ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-300 hover:bg-blue-50"
+                                    }`}
+                                    title="신랑"
+                                  >
+                                    <span className="text-xs">🤵</span>
+                                  </button>
+                                </div>
+                                <span className={`flex-1 min-w-0 ${bothChecked ? "line-through text-gray-400" : "text-gray-800"}`}>
+                                  {row.name}
+                                </span>
+                                {row.note && (
+                                  <span className="text-[10px] text-gray-400 shrink-0 max-w-[100px] text-right truncate">{row.note}</span>
                                 )}
-                              </button>
-                              <button
-                                onClick={() => toggleCheck(row)}
-                                className={`flex-1 text-left ${row.checked ? "line-through text-gray-400" : "text-gray-800"}`}
-                              >
-                                {row.name}
-                              </button>
-                              {row.note && (
-                                <span className="text-xs text-gray-400 shrink-0 max-w-[120px] text-right">{row.note}</span>
-                              )}
-                              {supabaseReady && (
-                                <button
-                                  onClick={() => removeChecklistItem(row)}
-                                  className="shrink-0 text-gray-300 hover:text-red-500 p-1"
-                                  title="삭제"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                  </svg>
-                                </button>
-                              )}
-                            </div>
-                          ))}
+                                {supabaseReady && (
+                                  <button
+                                    onClick={() => removeChecklistItem(row)}
+                                    className="shrink-0 text-gray-300 hover:text-red-500 p-1"
+                                    title="삭제"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
                           {addingToCategory === cat.title && (
                             <div className="px-4 py-2.5 bg-teal-50/30 flex items-center gap-2">
                               <input
@@ -1152,27 +1200,62 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
       {/* ───── BUDGET SECTION ───── */}
       {section === "budget" && (
         <main className="max-w-2xl mx-auto px-4 py-4 pb-12">
-          {/* Total Card */}
+          {/* Pre-paid budget card (예약된 예산) */}
+          <div className="bg-teal-700 text-white rounded-xl p-4 mb-4">
+            <p className="text-xs text-teal-200 mb-1">📋 예약된 예산 (이미 결제·예약 완료)</p>
+            <p className="text-2xl font-bold">{budget.total.krw}</p>
+            <p className="text-xs text-teal-200 mt-1">{budget.total.usd} · 환율 ₩{budget.exchangeRate}</p>
+          </div>
+
+          {/* Cash budget card (현지 현금) */}
           {(() => {
-            const totalBudgetKrw = parseInt(budget.total.krw.replace(/[^0-9]/g, ""));
-            const totalSpent = allExpensesTotalKrw + Object.values(spending).reduce((s, v) => s + v, 0);
-            const remaining = totalBudgetKrw - totalSpent;
-            const pct = totalBudgetKrw > 0 ? Math.min(100, Math.round((totalSpent / totalBudgetKrw) * 100)) : 0;
+            const cashSpent = allExpensesTotalKrw;
+            const cashRemaining = cashBudget - cashSpent;
+            const cashPct = cashBudget > 0 ? Math.min(100, Math.round((cashSpent / cashBudget) * 100)) : 0;
             return (
-              <div className="bg-teal-700 text-white rounded-xl p-4 mb-4">
-                <p className="text-xs text-teal-200 mb-1">총 예상 비용 (환율 ₩{budget.exchangeRate})</p>
-                <p className="text-2xl font-bold">{budget.total.krw}</p>
+              <div className="bg-amber-500 text-white rounded-xl p-4 mb-4">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-amber-100">💵 현지 현금 예산</p>
+                  {editingCashBudget ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoFocus
+                        value={cashBudget === 0 ? "" : cashBudget.toString()}
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value.replace(/[^0-9]/g, ""), 10);
+                          updateCashBudget(isNaN(n) ? 0 : n);
+                        }}
+                        onBlur={() => setEditingCashBudget(false)}
+                        onKeyDown={(e) => { if (e.key === "Enter") setEditingCashBudget(false); }}
+                        className="w-28 px-2 py-1 text-right text-sm bg-amber-600 text-white rounded outline-none placeholder-amber-200"
+                      />
+                      <span className="text-xs text-amber-100">원</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingCashBudget(true)}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-amber-600 hover:bg-amber-700 text-white"
+                    >
+                      예산 설정
+                    </button>
+                  )}
+                </div>
+                <p className="text-2xl font-bold">₩{cashBudget.toLocaleString("ko-KR")}</p>
                 <div className="mt-3 space-y-1">
                   <div className="flex justify-between text-sm">
-                    <span className="text-teal-200">사용</span>
-                    <span>₩{totalSpent.toLocaleString("ko-KR")}</span>
+                    <span className="text-amber-100">사용</span>
+                    <span>₩{cashSpent.toLocaleString("ko-KR")}</span>
                   </div>
-                  <div className="h-2 bg-teal-900 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${pct > 90 ? "bg-red-400" : pct > 70 ? "bg-yellow-400" : "bg-teal-300"}`} style={{ width: `${pct}%` }} />
+                  <div className="h-2 bg-amber-700 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${cashPct > 90 ? "bg-red-300" : cashPct > 70 ? "bg-yellow-200" : "bg-amber-100"}`} style={{ width: `${cashPct}%` }} />
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-teal-200">잔여</span>
-                    <span className={remaining < 0 ? "text-red-300" : ""}>₩{remaining.toLocaleString("ko-KR")}</span>
+                    <span className="text-amber-100">잔여</span>
+                    <span className={cashRemaining < 0 ? "text-red-200 font-semibold" : ""}>
+                      ₩{cashRemaining.toLocaleString("ko-KR")}
+                    </span>
                   </div>
                 </div>
               </div>
