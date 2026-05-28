@@ -456,7 +456,6 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
   // ─── Daily Expenses (DB-backed) ──────────────────────
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [expAmount, setExpAmount] = useState("");
-  const [expCurrency, setExpCurrency] = useState<"USD" | "KRW">("USD");
   const [expCategory, setExpCategory] = useState("🍽️ 식비");
   const [expMemo, setExpMemo] = useState("");
   const [expDate, setExpDate] = useState(() => {
@@ -464,17 +463,25 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   });
   const [showAllExpenses, setShowAllExpenses] = useState(false);
-  const [cashBudget, setCashBudget] = useState(2000000); // 기본 200만원
+  const [cashBudgetUsd, setCashBudgetUsd] = useState(1500); // 기본 $1500
   const [editingCashBudget, setEditingCashBudget] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("wedding-cash-budget");
-    if (saved) setCashBudget(parseInt(saved));
+    const saved = localStorage.getItem("wedding-cash-budget-usd");
+    if (saved) setCashBudgetUsd(parseFloat(saved));
+    else {
+      // 기존 KRW 예산이 있으면 USD로 변환
+      const legacy = localStorage.getItem("wedding-cash-budget");
+      if (legacy) {
+        const rate = parseInt(budget.exchangeRate.replace(/,/g, ""));
+        setCashBudgetUsd(Math.round(parseInt(legacy) / rate));
+      }
+    }
   }, []);
 
-  const updateCashBudget = (n: number) => {
-    setCashBudget(n);
-    localStorage.setItem("wedding-cash-budget", String(n));
+  const updateCashBudgetUsd = (n: number) => {
+    setCashBudgetUsd(n);
+    localStorage.setItem("wedding-cash-budget-usd", String(n));
   };
 
   const reloadExpenses = useCallback(async () => {
@@ -509,8 +516,8 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
     const amount = parseFloat(expAmount);
     if (!amount || isNaN(amount) || amount <= 0) return;
     const rate = parseInt(budget.exchangeRate.replace(/,/g, ""));
-    const amountUsd = expCurrency === "USD" ? amount : amount / rate;
-    const amountKrw = expCurrency === "KRW" ? Math.round(amount) : Math.round(amount * rate);
+    const amountUsd = amount;
+    const amountKrw = Math.round(amount * rate);
     if (supabaseReady) {
       await insertExpense({
         spent_at: expDate,
@@ -556,6 +563,7 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
   const todayExpenses = expenses.filter((e) => e.spent_at === todayDateStrIso);
   const todayTotalKrw = todayExpenses.reduce((s, e) => s + e.amount_krw, 0);
   const todayTotalUsd = todayExpenses.reduce((s, e) => s + Number(e.amount_usd), 0);
+  const allExpensesTotalUsd = expenses.reduce((s, e) => s + Number(e.amount_usd), 0);
   const allExpensesTotalKrw = expenses.reduce((s, e) => s + e.amount_krw, 0);
 
   // Group expenses by date for display
@@ -1185,29 +1193,30 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
         <main className="max-w-2xl mx-auto px-4 py-4 pb-12">
           {/* Cash budget card (현지 현금) */}
           {(() => {
-            const cashSpent = allExpensesTotalKrw;
-            const cashRemaining = cashBudget - cashSpent;
-            const cashPct = cashBudget > 0 ? Math.min(100, Math.round((cashSpent / cashBudget) * 100)) : 0;
+            const rate = parseInt(budget.exchangeRate.replace(/,/g, ""));
+            const cashSpent = allExpensesTotalUsd;
+            const cashRemaining = cashBudgetUsd - cashSpent;
+            const cashPct = cashBudgetUsd > 0 ? Math.min(100, Math.round((cashSpent / cashBudgetUsd) * 100)) : 0;
             return (
               <div className="bg-amber-500 text-white rounded-xl p-4 mb-4">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-xs text-amber-100">💵 현지 현금 예산</p>
                   {editingCashBudget ? (
                     <div className="flex items-center gap-1">
+                      <span className="text-xs text-amber-100">$</span>
                       <input
                         type="text"
-                        inputMode="numeric"
+                        inputMode="decimal"
                         autoFocus
-                        value={cashBudget === 0 ? "" : cashBudget.toString()}
+                        value={cashBudgetUsd === 0 ? "" : cashBudgetUsd.toString()}
                         onChange={(e) => {
-                          const n = parseInt(e.target.value.replace(/[^0-9]/g, ""), 10);
-                          updateCashBudget(isNaN(n) ? 0 : n);
+                          const n = parseFloat(e.target.value.replace(/[^0-9.]/g, ""));
+                          updateCashBudgetUsd(isNaN(n) ? 0 : n);
                         }}
                         onBlur={() => setEditingCashBudget(false)}
                         onKeyDown={(e) => { if (e.key === "Enter") setEditingCashBudget(false); }}
-                        className="w-28 px-2 py-1 text-right text-sm bg-amber-600 text-white rounded outline-none placeholder-amber-200"
+                        className="w-24 px-2 py-1 text-right text-sm bg-amber-600 text-white rounded outline-none placeholder-amber-200"
                       />
-                      <span className="text-xs text-amber-100">원</span>
                     </div>
                   ) : (
                     <button
@@ -1218,11 +1227,12 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
                     </button>
                   )}
                 </div>
-                <p className="text-2xl font-bold">₩{cashBudget.toLocaleString("ko-KR")}</p>
+                <p className="text-2xl font-bold">${cashBudgetUsd.toLocaleString()}</p>
+                <p className="text-xs text-amber-100 mt-0.5">≈ ₩{Math.round(cashBudgetUsd * rate).toLocaleString("ko-KR")}</p>
                 <div className="mt-3 space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-amber-100">사용</span>
-                    <span>₩{cashSpent.toLocaleString("ko-KR")}</span>
+                    <span>${cashSpent.toFixed(2)}</span>
                   </div>
                   <div className="h-2 bg-amber-700 rounded-full overflow-hidden">
                     <div className={`h-full rounded-full ${cashPct > 90 ? "bg-red-300" : cashPct > 70 ? "bg-yellow-200" : "bg-amber-100"}`} style={{ width: `${cashPct}%` }} />
@@ -1230,7 +1240,7 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
                   <div className="flex justify-between text-sm">
                     <span className="text-amber-100">잔여</span>
                     <span className={cashRemaining < 0 ? "text-red-200 font-semibold" : ""}>
-                      ₩{cashRemaining.toLocaleString("ko-KR")}
+                      ${cashRemaining.toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -1244,15 +1254,15 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
               <p className="text-sm font-bold text-amber-700">📌 오늘 지출</p>
               <span className="text-xs text-gray-400">{todayExpenses.length}건</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">₩{todayTotalKrw.toLocaleString("ko-KR")}</p>
-            <p className="text-sm text-gray-500">${todayTotalUsd.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-gray-900">${todayTotalUsd.toFixed(2)}</p>
+            <p className="text-sm text-gray-500">≈ ₩{todayTotalKrw.toLocaleString("ko-KR")}</p>
             {todayExpenses.length > 0 && (
               <div className="mt-3 space-y-1.5 border-t border-gray-100 pt-3">
                 {todayExpenses.map((e) => (
                   <div key={e.id} className="flex items-center gap-2 text-sm">
                     <span className="text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 shrink-0">{e.category}</span>
                     <span className="flex-1 text-gray-700 truncate">{e.memo || "-"}</span>
-                    <span className="text-gray-900 font-medium shrink-0">₩{e.amount_krw.toLocaleString("ko-KR")}</span>
+                    <span className="text-gray-900 font-medium shrink-0">${Number(e.amount_usd).toFixed(2)}</span>
                     <button
                       onClick={() => removeExpense(e.id)}
                       className="text-gray-300 hover:text-red-500 shrink-0"
@@ -1300,29 +1310,16 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-teal-400 mb-2"
             />
             <div className="flex items-center gap-2">
+              <span className="text-gray-400 shrink-0">$</span>
               <input
                 type="text"
                 inputMode="decimal"
                 value={expAmount}
                 onChange={(e) => setExpAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                 onKeyDown={(e) => { if (e.key === "Enter") addExpense(); }}
-                placeholder="금액"
+                placeholder="0.00"
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-right focus:outline-none focus:border-teal-400"
               />
-              <div className="flex bg-gray-100 rounded-lg p-0.5 shrink-0">
-                <button
-                  onClick={() => setExpCurrency("USD")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded ${expCurrency === "USD" ? "bg-white text-teal-700 shadow-sm" : "text-gray-500"}`}
-                >
-                  USD
-                </button>
-                <button
-                  onClick={() => setExpCurrency("KRW")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded ${expCurrency === "KRW" ? "bg-white text-teal-700 shadow-sm" : "text-gray-500"}`}
-                >
-                  KRW
-                </button>
-              </div>
               <button
                 onClick={addExpense}
                 className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors shrink-0"
@@ -1332,9 +1329,7 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
             </div>
             {expAmount && !isNaN(parseFloat(expAmount)) && (
               <p className="text-xs text-gray-400 mt-2 text-right">
-                {expCurrency === "USD"
-                  ? `≈ ₩${Math.round(parseFloat(expAmount) * parseInt(budget.exchangeRate.replace(/,/g, ""))).toLocaleString("ko-KR")}`
-                  : `≈ $${(parseFloat(expAmount) / parseInt(budget.exchangeRate.replace(/,/g, ""))).toFixed(2)}`}
+                ≈ ₩{Math.round(parseFloat(expAmount) * parseInt(budget.exchangeRate.replace(/,/g, ""))).toLocaleString("ko-KR")}
               </p>
             )}
           </div>
@@ -1355,19 +1350,19 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
                 <div className="space-y-3">
                   {expenseDatesSorted.filter((d) => d !== todayDateStrIso).map((date) => {
                     const dayExps = expensesByDate[date];
-                    const dayTotal = dayExps.reduce((s, e) => s + e.amount_krw, 0);
+                    const dayTotalUsd = dayExps.reduce((s, e) => s + Number(e.amount_usd), 0);
                     return (
                       <div key={date} className="border-t border-gray-100 pt-2">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-semibold text-gray-600">{date}</span>
-                          <span className="text-xs font-bold text-gray-700">₩{dayTotal.toLocaleString("ko-KR")}</span>
+                          <span className="text-xs font-bold text-gray-700">${dayTotalUsd.toFixed(2)}</span>
                         </div>
                         <div className="space-y-1">
                           {dayExps.map((e) => (
                             <div key={e.id} className="flex items-center gap-2 text-xs">
                               <span className="px-1 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">{e.category}</span>
                               <span className="flex-1 text-gray-700 truncate">{e.memo || "-"}</span>
-                              <span className="text-gray-900 shrink-0">₩{e.amount_krw.toLocaleString("ko-KR")}</span>
+                              <span className="text-gray-900 shrink-0">${Number(e.amount_usd).toFixed(2)}</span>
                               <button
                                 onClick={() => removeExpense(e.id)}
                                 className="text-gray-300 hover:text-red-500 shrink-0"
