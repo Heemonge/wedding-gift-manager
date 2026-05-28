@@ -60,7 +60,7 @@ export const cities: CityInfo[] = [
           { time: "08:00~09:00", place: "Ralph's Coffee", transport: "☕", activity: "Ralph's Coffee (메트 근처)" },
           { time: "09:00~10:00", place: "→ Metropolitan", transport: "🚇", activity: "4/5/6 → 86 St, 메트로폴리탄 이동" },
           { time: "10:00~11:00", place: "Metropolitan Museum", transport: "🚶", activity: "09:30 도착 → 10:00 입장", memo: "🎨 메트로폴리탄 미술관\n• 외국인 입장료 $30/인 (NY 거주자만 기부제)\n• 큰 가방/캐리어 X, 작은 백팩 OK (코트 체크 무료)\n• 사진 OK (플래시·셀카봉 X)\n• 음식·음료 반입 X (카페 있음)\n• 도슨트 미팅 장소·시간 사전 확인" },
-          { time: "11:00~12:00", place: "Metropolitan Museum", transport: "", activity: "메트 도슨트 투어 시작" },
+          { time: "11:00~12:00", place: "Metropolitan Museum", transport: "", activity: "메트 도슨트 투어 (시안 작가, 10:10~12:40)", memo: "🎨 시안 작가 도슨트 (마이리얼트립)\n• 09:45 도착 → 줄 서기 (10시 오픈)\n• 10:10 시작 / 2시간 30분\n• 만남: 메트 입구 코트보관소 근처\n• ⚠️ 미술관 내부 와이파이 X → 입장 전 만남 안내 메시지 캡처\n• 이어폰 3.5mm 본인 것 권장 (없으면 송수신기 무료 대여)\n• 음식·큰 가방·캐리어 반입 X (입장 거부 가능)\n• 메트 재입장 티켓 포함 → 도슨트 후 자유 관람 가능\n• 투어 하루 전(6/1) 마이리얼트립 메시지창 안내 확인\n• 작품 1개 마음에 담아오기 🌟" },
           { time: "12:00~13:00", place: "Metropolitan Museum", transport: "", activity: "도슨트 마무리" },
           { time: "13:00~14:00", place: "Orsay", transport: "🍽️", activity: "Orsay (프렌치 비스트로, 실내 1시 예약)", memo: "🍽️ Orsay (메트 도보 5분)\n• 1041 Lexington Ave & 75th St\n• 드레스코드 캐주얼~비즈니스 캐주얼\n• 팁 18~20% (계산서에 자동 추가 여부 확인)\n• 추천: 어니언 수프, 스테이크 프리트, 무솔(홍합)" },
           { time: "14:00~15:00", place: "메트 자유관람", transport: "🎨", activity: "메트 자유관람" },
