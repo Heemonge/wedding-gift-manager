@@ -728,6 +728,20 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
     });
   };
 
+  const markAllReservationsComplete = () => {
+    const next: Record<string, ResStatus> = {};
+    reservations.forEach((r) => {
+      if (r.status !== "완료") next[resKey(r.city, r.item)] = "완료";
+    });
+    setResOverrides(next);
+    localStorage.setItem("wedding-reservation-status", JSON.stringify(next));
+  };
+
+  const resetReservationOverrides = () => {
+    setResOverrides({});
+    localStorage.removeItem("wedding-reservation-status");
+  };
+
   const reservationsByCity = reservations.reduce<Record<string, typeof reservations>>((acc, r) => {
     if (!acc[r.city]) acc[r.city] = [];
     acc[r.city].push(r);
@@ -1191,7 +1205,7 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
       {section === "reservations" && (
         <main className="max-w-2xl mx-auto px-4 py-4 pb-12">
           {/* Summary counts */}
-          <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             {(["완료", "미완료", "주의"] as const).map((s) => {
               const count = reservations.filter((r) => getResStatus(r) === s).length;
               return (
@@ -1204,7 +1218,21 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
                 </span>
               );
             })}
-            <span className="text-[10px] text-gray-400 ml-auto">상태 배지 탭 → 완료/원래상태 전환</span>
+          </div>
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={markAllReservationsComplete}
+              className="text-xs px-3 py-1.5 rounded-lg bg-green-500 text-white font-medium hover:bg-green-600 transition-colors"
+            >
+              ✓ 모두 완료
+            </button>
+            <button
+              onClick={resetReservationOverrides}
+              className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition-colors"
+            >
+              초기화
+            </button>
+            <span className="text-[10px] text-gray-400 ml-auto">배지 탭 → 개별 토글</span>
           </div>
 
           <div className="space-y-4">
