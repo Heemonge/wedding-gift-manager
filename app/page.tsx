@@ -28,9 +28,15 @@ import {
   fetchExpenses,
   insertExpense,
   deleteExpense,
+  fetchDocuments,
+  insertDocument,
+  deleteDocument,
+  uploadDocument,
+  getDocumentPublicUrl,
   type GiftRow,
   type ChecklistRow,
   type ExpenseRow,
+  type DocumentRow,
 } from "./lib/supabase";
 
 const DEFAULT_TICKET_PRICE = 65000;
@@ -202,7 +208,7 @@ function calcSummary(entries: GiftEntry[], ticketPrice: number) {
   };
 }
 
-type ItinerarySection = "schedule" | "checklist" | "reservations" | "immigration" | "budget" | "insurance";
+type ItinerarySection = "schedule" | "checklist" | "reservations" | "documents" | "immigration" | "budget" | "insurance";
 
 const CITY_GEO: Record<string, { lat: number; lon: number; tz: string }> = {
   "뉴욕": { lat: 40.7128, lon: -74.006, tz: "America/New_York" },
@@ -280,6 +286,7 @@ const ITINERARY_SECTIONS: { key: ItinerarySection; emoji: string; label: string 
   { key: "schedule", emoji: "📅", label: "일정" },
   { key: "checklist", emoji: "✅", label: "준비물" },
   { key: "reservations", emoji: "🎫", label: "사전예약" },
+  { key: "documents", emoji: "📎", label: "티켓·서류" },
   { key: "immigration", emoji: "🛂", label: "입국·서류" },
   { key: "budget", emoji: "💰", label: "예산" },
   { key: "insurance", emoji: "🛡️", label: "보험" },
@@ -465,6 +472,77 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
   const [showAllExpenses, setShowAllExpenses] = useState(false);
   const [cashBudgetUsd, setCashBudgetUsd] = useState(1500); // 기본 $1500
   const [editingCashBudget, setEditingCashBudget] = useState(false);
+
+  // ─── Documents (PDF/이미지) ───────────────────────────
+  const [documents, setDocuments] = useState<DocumentRow[]>([]);
+  const [docTitle, setDocTitle] = useState("");
+  const [docCategory, setDocCategory] = useState("✈️ 항공권");
+  const [docMemo, setDocMemo] = useState("");
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docUploading, setDocUploading] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
+
+  const DOC_CATEGORIES = ["✈️ 항공권", "🏨 호텔 바우처", "📄 ESTA", "🛡️ 보험증서", "🎫 입장권", "📝 기타"];
+
+  const reloadDocuments = useCallback(async () => {
+    if (!supabaseReady) {
+      setDocuments([]);
+      return;
+    }
+    const rows = await fetchDocuments();
+    setDocuments(rows);
+  }, []);
+
+  useEffect(() => { void reloadDocuments(); }, [reloadDocuments]);
+
+  useEffect(() => {
+    const client = supabase;
+    if (!supabaseReady || !client) return;
+    const channel = client
+      .channel("honeymoon-documents")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "honeymoon_documents" },
+        () => { void reloadDocuments(); }
+      )
+      .subscribe();
+    return () => { client.removeChannel(channel); };
+  }, [reloadDocuments]);
+
+  const addDocument = async () => {
+    if (!docFile) { setDocError("파일을 선택하세요"); return; }
+    if (!docTitle.trim()) { setDocError("제목을 입력하세요"); return; }
+    setDocError(null);
+    setDocUploading(true);
+    try {
+      const result = await uploadDocument(docFile);
+      if (!result) {
+        setDocError("업로드 실패. 다시 시도하세요.");
+        return;
+      }
+      await insertDocument({
+        title: docTitle.trim(),
+        category: docCategory,
+        file_path: result.path,
+        file_name: docFile.name,
+        mime_type: docFile.type || "application/octet-stream",
+        file_size: docFile.size,
+        memo: docMemo,
+        position: 0,
+      });
+      await reloadDocuments();
+      setDocTitle("");
+      setDocMemo("");
+      setDocFile(null);
+    } finally {
+      setDocUploading(false);
+    }
+  };
+
+  const removeDocument = async (doc: DocumentRow) => {
+    await deleteDocument(doc.id, doc.file_path);
+    await reloadDocuments();
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem("wedding-cash-budget-usd");
@@ -1139,6 +1217,140 @@ function ItineraryView({ onBack }: { onBack: () => void }) {
               </div>
             ))}
           </div>
+        </main>
+      )}
+
+      {/* ───── DOCUMENTS SECTION ───── */}
+      {section === "documents" && (
+        <main className="max-w-2xl mx-auto px-4 py-4 pb-12">
+          {!supabaseReady && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-xs text-yellow-700">
+              DB 연결이 필요한 기능입니다. (Supabase 환경변수 미설정)
+            </div>
+          )}
+
+          {/* Upload Form */}
+          {supabaseReady && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+              <p className="text-sm font-semibold text-gray-700 mb-3">+ 파일 업로드</p>
+              <input
+                type="text"
+                value={docTitle}
+                onChange={(e) => setDocTitle(e.target.value)}
+                placeholder="제목 (예: 인천→뉴어크 항공권)"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-teal-400 mb-2"
+              />
+              <div className="grid grid-cols-3 gap-1.5 mb-2">
+                {DOC_CATEGORIES.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setDocCategory(c)}
+                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      docCategory === c ? "bg-teal-500 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={docMemo}
+                onChange={(e) => setDocMemo(e.target.value)}
+                placeholder="메모 (선택)"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-teal-400 mb-2"
+              />
+              <label className="block mb-2">
+                <span className="sr-only">파일</span>
+                <input
+                  type="file"
+                  accept="application/pdf,image/*"
+                  onChange={(e) => { setDocFile(e.target.files?.[0] ?? null); setDocError(null); }}
+                  className="block w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                />
+              </label>
+              {docFile && (
+                <p className="text-xs text-gray-500 mb-2">
+                  📎 {docFile.name} ({(docFile.size / 1024).toFixed(0)}KB)
+                </p>
+              )}
+              {docError && <p className="text-xs text-red-500 mb-2">{docError}</p>}
+              <button
+                onClick={addDocument}
+                disabled={docUploading || !docFile || !docTitle.trim()}
+                className="w-full py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-lg hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {docUploading ? "업로드 중..." : "업로드"}
+              </button>
+            </div>
+          )}
+
+          {/* Documents List grouped by category */}
+          {(() => {
+            const grouped = documents.reduce<Record<string, DocumentRow[]>>((acc, d) => {
+              if (!acc[d.category]) acc[d.category] = [];
+              acc[d.category].push(d);
+              return acc;
+            }, {});
+            const categories = Object.keys(grouped).sort();
+            if (categories.length === 0) {
+              return (
+                <div className="text-center text-sm text-gray-400 py-8">
+                  아직 등록된 파일이 없습니다.
+                </div>
+              );
+            }
+            return (
+              <div className="space-y-4">
+                {categories.map((cat) => (
+                  <div key={cat} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="px-4 py-3 bg-teal-50 border-b border-teal-100">
+                      <h3 className="text-sm font-bold text-teal-800">{cat}</h3>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {grouped[cat].map((doc) => {
+                        const url = getDocumentPublicUrl(doc.file_path);
+                        const isImage = doc.mime_type.startsWith("image/");
+                        const isPdf = doc.mime_type === "application/pdf";
+                        return (
+                          <div key={doc.id} className="px-4 py-3 flex items-center gap-3">
+                            {isImage ? (
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={url} alt={doc.title} className="w-14 h-14 object-cover rounded-lg border border-gray-200" />
+                              </a>
+                            ) : (
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="shrink-0 w-14 h-14 bg-red-50 border border-red-200 rounded-lg flex items-center justify-center">
+                                <span className="text-2xl">{isPdf ? "📄" : "📎"}</span>
+                              </a>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-gray-900 hover:text-teal-600 block truncate">
+                                {doc.title}
+                              </a>
+                              {doc.memo && <p className="text-xs text-gray-500 mt-0.5 truncate">{doc.memo}</p>}
+                              <p className="text-[10px] text-gray-400 mt-0.5">
+                                {doc.file_name} · {(doc.file_size / 1024).toFixed(0)}KB
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => removeDocument(doc)}
+                              className="shrink-0 text-gray-300 hover:text-red-500 p-1"
+                              title="삭제"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </main>
       )}
 

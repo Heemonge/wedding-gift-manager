@@ -138,3 +138,62 @@ begin
     alter publication supabase_realtime add table honeymoon_expenses;
   end if;
 end $$;
+
+-- ============================================================
+-- 신혼여행 티켓·서류 (PDF/이미지 첨부)
+-- ============================================================
+
+create table if not exists honeymoon_documents (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  category text not null default '기타',
+  file_path text not null,
+  file_name text not null,
+  mime_type text not null default 'application/octet-stream',
+  file_size int not null default 0,
+  memo text not null default '',
+  position int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table honeymoon_documents enable row level security;
+
+drop policy if exists "public all on honeymoon_documents" on honeymoon_documents;
+create policy "public all on honeymoon_documents"
+  on honeymoon_documents for all
+  using (true) with check (true);
+
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'honeymoon_documents') then
+    alter publication supabase_realtime add table honeymoon_documents;
+  end if;
+end $$;
+
+-- ============================================================
+-- Storage bucket (PDF/이미지 파일 저장)
+-- ============================================================
+
+insert into storage.buckets (id, name, public)
+values ('honeymoon-docs', 'honeymoon-docs', true)
+on conflict (id) do nothing;
+
+drop policy if exists "public read honeymoon-docs" on storage.objects;
+create policy "public read honeymoon-docs"
+  on storage.objects for select
+  using (bucket_id = 'honeymoon-docs');
+
+drop policy if exists "public insert honeymoon-docs" on storage.objects;
+create policy "public insert honeymoon-docs"
+  on storage.objects for insert
+  with check (bucket_id = 'honeymoon-docs');
+
+drop policy if exists "public update honeymoon-docs" on storage.objects;
+create policy "public update honeymoon-docs"
+  on storage.objects for update
+  using (bucket_id = 'honeymoon-docs');
+
+drop policy if exists "public delete honeymoon-docs" on storage.objects;
+create policy "public delete honeymoon-docs"
+  on storage.objects for delete
+  using (bucket_id = 'honeymoon-docs');

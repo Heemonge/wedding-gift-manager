@@ -187,3 +187,68 @@ export async function deleteExpense(id: string): Promise<void> {
   const { error } = await supabase.from("honeymoon_expenses").delete().eq("id", id);
   if (error) console.error("deleteExpense", error);
 }
+
+// ─── 티켓·서류 ────────────────────────────────────────
+
+export const DOCUMENTS_BUCKET = "honeymoon-docs";
+
+export interface DocumentRow {
+  id: string;
+  title: string;
+  category: string;
+  file_path: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  memo: string;
+  position: number;
+  created_at?: string;
+}
+
+export async function fetchDocuments(): Promise<DocumentRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("honeymoon_documents")
+    .select("*")
+    .order("category", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("fetchDocuments", error.message, error.details, error.hint, error.code);
+    return [];
+  }
+  return (data as DocumentRow[]) ?? [];
+}
+
+export async function insertDocument(row: Omit<DocumentRow, "id" | "created_at">): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("honeymoon_documents").insert(row);
+  if (error) console.error("insertDocument", error.message, error.details, error.hint, error.code);
+}
+
+export async function deleteDocument(id: string, filePath: string): Promise<void> {
+  if (!supabase) return;
+  await supabase.storage.from(DOCUMENTS_BUCKET).remove([filePath]);
+  const { error } = await supabase.from("honeymoon_documents").delete().eq("id", id);
+  if (error) console.error("deleteDocument", error.message, error.details, error.hint, error.code);
+}
+
+export async function uploadDocument(file: File): Promise<{ path: string; publicUrl: string } | null> {
+  if (!supabase) return null;
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
+  const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext ? "." + ext : ""}`;
+  const { error } = await supabase.storage
+    .from(DOCUMENTS_BUCKET)
+    .upload(safeName, file, { contentType: file.type, upsert: false });
+  if (error) {
+    console.error("uploadDocument", error.message);
+    return null;
+  }
+  const { data } = supabase.storage.from(DOCUMENTS_BUCKET).getPublicUrl(safeName);
+  return { path: safeName, publicUrl: data.publicUrl };
+}
+
+export function getDocumentPublicUrl(path: string): string {
+  if (!supabase) return "";
+  const { data } = supabase.storage.from(DOCUMENTS_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
