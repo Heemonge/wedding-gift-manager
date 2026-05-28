@@ -868,8 +868,35 @@ export default function Home() {
   const [config, setConfig] = useState<TicketConfig>({ ticketPrice: DEFAULT_TICKET_PRICE, groomTickets: DEFAULT_TOTAL_TICKETS, brideTickets: DEFAULT_TOTAL_TICKETS, guaranteedGuests: DEFAULT_GUARANTEED_GUESTS });
   const [showConfig, setShowConfig] = useState(false);
   const [settlementData, setSettlementData] = useState<{ groom: GiftEntry[]; bride: GiftEntry[] } | null>(null);
+  const [pinPrompt, setPinPrompt] = useState<{
+    title: string;
+    expected: string;
+    onSuccess: () => void;
+  } | null>(null);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const captureRef = useRef<HTMLDivElement | null>(null);
+
+  const askPin = useCallback((title: string, expected: string, onSuccess: () => void) => {
+    setPinInput("");
+    setPinError(false);
+    setPinPrompt({ title, expected, onSuccess });
+  }, []);
+
+  const submitPin = () => {
+    if (!pinPrompt) return;
+    if (pinInput === pinPrompt.expected) {
+      const cb = pinPrompt.onSuccess;
+      setPinPrompt(null);
+      setPinInput("");
+      setPinError(false);
+      cb();
+    } else {
+      setPinError(true);
+      setPinInput("");
+    }
+  };
 
   const handleDownload = async (filename: string) => {
     if (!captureRef.current) return;
@@ -1261,6 +1288,45 @@ export default function Home() {
     );
   };
 
+  const pinModal = pinPrompt ? (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-xs shadow-xl">
+        <h3 className="text-lg font-semibold text-gray-900 mb-1">{pinPrompt.title}</h3>
+        <p className="text-xs text-gray-500 mb-4">숫자 비밀번호를 입력하세요</p>
+        <input
+          type="password"
+          inputMode="numeric"
+          autoFocus
+          value={pinInput}
+          onChange={(e) => { setPinInput(e.target.value); setPinError(false); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submitPin();
+            if (e.key === "Escape") setPinPrompt(null);
+          }}
+          className={`w-full px-4 py-3 text-center text-xl tracking-widest border-2 rounded-xl outline-none ${
+            pinError ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-blue-400"
+          }`}
+          placeholder="••••"
+        />
+        {pinError && <p className="text-xs text-red-500 mt-2 text-center">비밀번호가 틀렸습니다</p>}
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={() => setPinPrompt(null)}
+            className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
+          >
+            취소
+          </button>
+          <button
+            onClick={submitPin}
+            className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
+          >
+            확인
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   if (initializing) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -1410,10 +1476,7 @@ export default function Home() {
               <span className="text-lg font-semibold text-amber-700 group-hover:text-amber-800">축의금 관리</span>
             </button>
             <button
-              onClick={() => {
-                const pw = prompt("비밀번호를 입력하세요");
-                if (pw === "8789") setPage("itinerary");
-              }}
+              onClick={() => askPin("신혼여행 일정 비밀번호", "8789", () => setPage("itinerary"))}
               className="w-48 h-48 bg-white border-2 border-teal-200 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-teal-500 hover:shadow-lg transition-all group"
             >
               <span className="text-5xl">✈️</span>
@@ -1421,6 +1484,7 @@ export default function Home() {
             </button>
           </div>
         </div>
+        {pinModal}
       </div>
     );
   }
@@ -1449,10 +1513,7 @@ export default function Home() {
           <div className="mb-6 w-full max-w-sm mx-auto">
             {!showConfig ? (
               <button
-                onClick={() => {
-                  const pw = prompt("비밀번호를 입력하세요");
-                  if (pw === "8789") setShowConfig(true);
-                }}
+                onClick={() => askPin("식권 설정 비밀번호", "8789", () => setShowConfig(true))}
                 className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
               >
                 식권 설정
@@ -1537,30 +1598,20 @@ export default function Home() {
 
           <div className="flex gap-6 mb-8">
             <button
-              onClick={() => {
-                const pw = prompt("신랑측 비밀번호를 입력하세요");
-                if (pw === "0910") {
-                  setSide("groom");
-                  setPage("groom");
-                } else if (pw !== null) {
-                  alert("비밀번호가 틀렸습니다.");
-                }
-              }}
+              onClick={() => askPin("신랑측 비밀번호", "0910", () => {
+                setSide("groom");
+                setPage("groom");
+              })}
               className="w-44 h-44 bg-white border-2 border-blue-200 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-blue-500 hover:shadow-lg transition-all group"
             >
               <span className="text-5xl">🤵</span>
               <span className="text-lg font-semibold text-blue-700 group-hover:text-blue-800">신랑측</span>
             </button>
             <button
-              onClick={() => {
-                const pw = prompt("신부측 비밀번호를 입력하세요");
-                if (pw === "0925") {
-                  setSide("bride");
-                  setPage("bride");
-                } else if (pw !== null) {
-                  alert("비밀번호가 틀렸습니다.");
-                }
-              }}
+              onClick={() => askPin("신부측 비밀번호", "0925", () => {
+                setSide("bride");
+                setPage("bride");
+              })}
               className="w-44 h-44 bg-white border-2 border-pink-200 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-pink-500 hover:shadow-lg transition-all group"
             >
               <span className="text-5xl">👰</span>
@@ -1574,6 +1625,7 @@ export default function Home() {
             정산하기
           </button>
         </div>
+        {pinModal}
       </div>
     );
   }
