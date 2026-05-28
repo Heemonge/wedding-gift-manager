@@ -875,6 +875,7 @@ export default function Home() {
   } | null>(null);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState(false);
+  const [recentlyDeleted, setRecentlyDeleted] = useState<{ entry: GiftEntry; side: Side; ts: number } | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const captureRef = useRef<HTMLDivElement | null>(null);
 
@@ -1052,7 +1053,11 @@ export default function Home() {
     if (!side) return;
     const currentSide = side;
     setEntries((prev) => {
-      const wasFilled = prev.find((e) => e.id === id)?.name.trim() !== "";
+      const target = prev.find((e) => e.id === id);
+      const wasFilled = (target?.name.trim() ?? "") !== "";
+      if (target && wasFilled) {
+        setRecentlyDeleted({ entry: target, side: currentSide, ts: Date.now() });
+      }
       const filtered = prev.filter((e) => e.id !== id);
       if (filtered.length === 0 || !filtered.some((e) => !e.name.trim())) {
         filtered.push(createEmptyEntry());
@@ -1061,6 +1066,25 @@ export default function Home() {
       return filtered;
     });
   };
+
+  const undoDelete = () => {
+    if (!recentlyDeleted) return;
+    const { entry, side: deletedSide } = recentlyDeleted;
+    setRecentlyDeleted(null);
+    setEntries((prev) => {
+      const withoutEmpty = prev.filter((e) => e.name.trim() !== "");
+      const restored = [...withoutEmpty, entry, createEmptyEntry()];
+      void persistEntryUpsert(entry, deletedSide, restored);
+      return restored;
+    });
+  };
+
+  // Auto-hide undo toast after 10 seconds
+  useEffect(() => {
+    if (!recentlyDeleted) return;
+    const timer = setTimeout(() => setRecentlyDeleted(null), 10000);
+    return () => clearTimeout(timer);
+  }, [recentlyDeleted]);
 
   // Load + subscribe settlement data whenever the settlement page is open
   useEffect(() => {
@@ -1760,6 +1784,30 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      {recentlyDeleted && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-gray-900 text-white rounded-full shadow-lg px-5 py-3 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2">
+          <span className="text-sm">
+            <span className="text-gray-300">삭제됨:</span>{" "}
+            <span className="font-medium">{recentlyDeleted.entry.name}</span>
+          </span>
+          <button
+            onClick={undoDelete}
+            className="text-sm font-semibold text-blue-300 hover:text-blue-200 transition-colors"
+          >
+            되돌리기
+          </button>
+          <button
+            onClick={() => setRecentlyDeleted(null)}
+            className="text-gray-400 hover:text-white transition-colors ml-1"
+            title="닫기"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
