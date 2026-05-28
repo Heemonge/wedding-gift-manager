@@ -174,7 +174,7 @@ export const cities: CityInfo[] = [
           { time: "17:00~18:00", place: "Wynwood Walls", transport: "🚕", activity: "윈우드 월스 (벽화 거리)", memo: "🎨 Wynwood Walls\n• 입장료 $15-25/인 (Wynwood Walls 정원 내부)\n• 외부 거리 벽화는 무료 (사진 충분)\n• 저녁에 가면 어두워서 사진 X — 17~18시 추천\n• Wynwood Brewing 등 양조장 多 (선택)" },
           { time: "18:00~19:00", place: "Lincoln Road", transport: "🚶", activity: "링컨로드 산책", memo: "🛍️ Lincoln Road Mall\n• 보행자 전용 쇼핑/식당 거리 (10블록)\n• Apple, H&M, Sephora 등 + 야외 카페\n• 야간엔 라이브 음악 + 거리 공연\n• 5th~17th Street 까지 길이 김 — 마음에 드는 구간만" },
           { time: "19:00~20:00", place: "Trader Joe's", transport: "🚶", activity: "트레이더조", memo: "🛒 Trader Joe's (Alton Rd 점)\n• 호텔에서 도보 15분 또는 우버 5분\n• 사놓기 추천: 생수 (대형팩), 요거트, 그래놀라, 과일, 와인\n• 마이애미 호텔은 미니바 비쌈 → 미리 사두면 절약" },
-          { time: "20:00~21:00", place: "Havana1957", transport: "🚶", activity: "🍽️ Havana1957 (Lincoln Rd · 아일랜드석)", memo: "🍽️ Havana1957 — 20시 예약 ✓\n• 좌석: Island (Lincoln Road 가운데 보행자 섬)\n• 쿠바 정통 + 라이브 라틴 밴드\n• 추천: Ropa Vieja (소고기 스튜), Cuban Sandwich, Mojito\n• 디저트: Tres Leches\n• 팁 18~20% (계산서에 자동 포함 여부 확인)" },
+          { time: "20:00~21:00", place: "Havana1957", transport: "🚶", activity: "🍽️ Havana1957 (Lincoln Rd · 아일랜드석)", memo: "🍽️ Havana1957 — 20시 예약 ✓\n• 좌석: Island (Lincoln Road 가운데 보행자 섬)\n• ⚠️ 20% 서비스 차지 자동 포함 (계산서에 미리 들어감)\n   = 추가 팁 안 줘도 됨. 정말 만족하면 +2~5% 정도만\n   = 영수증의 'Service Charge' / 'Gratuity' 줄 확인\n   = 'Tip' 줄이 별도로 또 있으면 비워두기 (이중 팁 주의)\n• 쿠바 정통 + 라이브 라틴 밴드\n• 추천: Ropa Vieja (소고기 스튜), Cuban Sandwich, Mojito\n• 디저트: Tres Leches" },
         ],
       },
       {
@@ -494,7 +494,7 @@ export const reservations: Reservation[] = [
   { city: "뉴욕", cityEmoji: "🗽", category: "다이닝", item: "Carmine's 저녁 (이탈리안)", time: "6/4 16:30", bookingSite: "OpenTable", bookingUrl: "https://www.opentable.com", cost: "₩120,800", status: "완료", memo: "해리포터 공연 전 저녁" },
   { city: "마이애미", cityEmoji: "🏖️", category: "다이닝", item: "Gianni's (베르사체 맨션 런치)", time: "6/7 12:30", bookingSite: "OpenTable", bookingUrl: "https://www.opentable.com", cost: "₩302,000", status: "완료", memo: "풀사이드 자리 요청" },
   { city: "마이애미", cityEmoji: "🏖️", category: "맛집", item: "Joe's Stone Crab", time: "6/8 19:00", bookingSite: "joesstonecrab.com", bookingUrl: "https://www.joesstonecrab.com", cost: "₩151,000", status: "완료", memo: "" },
-  { city: "마이애미", cityEmoji: "🏖️", category: "다이닝", item: "Havana 1957 (링컨로드)", time: "6/6 20:00", bookingSite: "OpenTable", bookingUrl: "https://www.opentable.com", cost: "₩120,000", status: "완료", memo: "아일랜드석 (Lincoln Road 중앙 보행자 섬) — 라이브 밴드 가까이" },
+  { city: "마이애미", cityEmoji: "🏖️", category: "다이닝", item: "Havana 1957 (링컨로드)", time: "6/6 20:00", bookingSite: "OpenTable", bookingUrl: "https://www.opentable.com", cost: "₩120,000", status: "완료", memo: "아일랜드석 · 20% 자동 서비스 차지 (추가 팁 X)" },
   { city: "LA", cityEmoji: "🌴", category: "테마파크", item: "유니버설 스튜디오 + Express Pass", time: "", bookingSite: "유니버설", bookingUrl: "https://www.universalstudioshollywood.com", cost: "₩362,400", status: "미완료", memo: "" },
   { city: "LA", cityEmoji: "🌴", category: "스튜디오", item: "Warner Bros Studio Tour Plus", time: "6/11 09:00", bookingSite: "워너브라더스", bookingUrl: "https://www.wbstudiotour.com", cost: "₩483,200", status: "완료", memo: "" },
   { city: "LA", cityEmoji: "🌴", category: "렌터카", item: "LA 렌터카 (풀커버 보험)", time: "", bookingSite: "Hertz / Avis", bookingUrl: "https://www.hertz.com", cost: "₩604,000", status: "미완료", memo: "" },
