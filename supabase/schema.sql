@@ -59,8 +59,15 @@ create policy "public all on wedding_config"
 -- Realtime 활성화 (양쪽 기기 즉시 동기화)
 -- ============================================================
 
-alter publication supabase_realtime add table wedding_gifts;
-alter publication supabase_realtime add table wedding_config;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'wedding_gifts') then
+    alter publication supabase_realtime add table wedding_gifts;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'wedding_config') then
+    alter publication supabase_realtime add table wedding_config;
+  end if;
+end $$;
 
 -- ============================================================
 -- 신혼여행 체크리스트 (사용자 편집 가능)
@@ -89,7 +96,12 @@ create policy "public all on honeymoon_checklist"
   on honeymoon_checklist for all
   using (true) with check (true);
 
-alter publication supabase_realtime add table honeymoon_checklist;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'honeymoon_checklist') then
+    alter publication supabase_realtime add table honeymoon_checklist;
+  end if;
+end $$;
 
 -- ============================================================
 -- 신혼여행 일일 지출
@@ -115,4 +127,9 @@ create policy "public all on honeymoon_expenses"
   on honeymoon_expenses for all
   using (true) with check (true);
 
-alter publication supabase_realtime add table honeymoon_expenses;
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'honeymoon_expenses') then
+    alter publication supabase_realtime add table honeymoon_expenses;
+  end if;
+end $$;
